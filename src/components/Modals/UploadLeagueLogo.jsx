@@ -1,20 +1,32 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { uploadLogo, clearUpload } from '../../store/uploads/uploadLogoSlice';
 
-const UploadLeagueLogoModal = ({ show, onClose, onUploaded }) => {
+const UploadLeagueLogoModal = ({ show, onClose, onUploaded, referenceId, reloadData, folder, type }) => {
   const dispatch = useDispatch();
-  const { loading, progress, url, error } = useSelector(state => state.uploadLogo);
+  const { loading = false, progress = 0, url = '', error = null, processComplete = false
+  } = useSelector(state => state.uploadLogo || {});
   const fileInputRef = useRef();
+
+  useEffect(() => {
+    console.log('Executing onClose and reloadData');
+    if (processComplete) {
+      onClose();
+      reloadData();
+    }
+  }, [processComplete])
+
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    dispatch(uploadLogo({ file, folder: 'league-logos' }));
+    console.log('Dispatching uploadLogo with referenceId:', referenceId);
+    dispatch(uploadLogo({ file, folder, referenceId, type }));
   };
 
   const handleClose = () => {
     dispatch(clearUpload());
+    reloadData()
     onClose();
   };
 
@@ -67,11 +79,11 @@ const UploadLeagueLogoModal = ({ show, onClose, onUploaded }) => {
                 </div>
               )}
 
-              {url && (
-                <div className="text-center mb-3">
-                  <img src={url} alt="Logo Preview" className="img-fluid rounded shadow" style={{ maxHeight: '200px' }} />
+              {/*url && (
+                <div className="text-center mb-3 rounded-circle">
+                  <img src={url} alt="Logo Preview" className="rounded-circle img-fluid rounded shadow" style={{ maxHeight: '200px' }} />
                 </div>
-              )}
+              )*/}
 
               {error && (
                 <div className="alert alert-danger text-center">

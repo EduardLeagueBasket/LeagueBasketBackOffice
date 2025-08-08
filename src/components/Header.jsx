@@ -40,7 +40,7 @@ const Header = ({ setSidebarOpen, currentPage }) => {
             <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '32px', height: '32px' }}>
               <User size={18} color="white" />
             </div>
-            <span className="fw-medium">{user?.name}</span>
+            <span className="fw-medium">{user?.name} {user?.lastName}</span>
           </div>
         </div>
       </div>

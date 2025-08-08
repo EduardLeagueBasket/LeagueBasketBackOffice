@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getProfiles } from '../../store/profileSlice';
-import { useNavigate } from 'react-router-dom';
 import { createUser } from '../../store/createUserSlice';
 import { ClipLoader } from "react-spinners";
 import Swal from 'sweetalert2'
@@ -11,8 +10,7 @@ import { mapProfileName } from '../../utils/MapRoleName';
 
 const Users = () => {
   const { user } = useSelector((state) => state.auth);
-  //console.log('user', user);
-  const navigate = useNavigate();
+  console.log('user', user);
   const dispatch = useDispatch();
   const [profiles, setProfiles] = useState([]);
   const [formData, setFormData] = useState({
@@ -29,7 +27,7 @@ const Users = () => {
     if (profiles.length === 0) {
       handleGetProfiles();
     }
-  }, []);
+  });
 
   const handleGetProfiles = async () => {
     const result = await dispatch(getProfiles());
@@ -39,10 +37,24 @@ const Users = () => {
 
       const filteredProfiles = rawProfiles
         .filter(profile => profile.name !== 'USER')
-        .map(profile => ({
-          ...profile,
-          name: mapProfileName(profile.name),
-        }));
+        .map(profile => {
+          if (user.profile.name === 'MANAGER_LEAGUE' || user.profile.name === 'ASISTANT_LEAGUE') {
+            if (profile.name === 'MANAGER_TEAM' || profile.name === 'ASISTANT_LEAGUE') {
+              return {
+                ...profile,
+                name: mapProfileName(profile.name),
+              };
+            }
+            return null; // <- Evita undefined
+          } else {
+            return {
+              ...profile,
+              name: mapProfileName(profile.name),
+            };
+          }
+        })
+        .filter(profile => profile !== null);
+
 
       setProfiles(filteredProfiles);
     }
@@ -108,7 +120,12 @@ const Users = () => {
         });
         return;
       }
-
+      Swal.fire({
+        title: 'Usuario creado correctamente',
+        text: 'El usuario ha sido creado correctamente',
+        icon: 'success'
+      });
+      handleCancel();
     } catch (error) {
       console.error('Error al crear usuario:', error);
       alert('Error al crear el usuario');

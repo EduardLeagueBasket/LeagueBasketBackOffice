@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import '../styles/Sidebar.css';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/authSlice';
 
 const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -14,7 +15,7 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
     <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header d-flex align-items-center justify-content-between">
         <div className="sidebar-brand">
-          <h5 className="text-white mb-0">Mi Dashboard</h5>
+          <h5 className="text-white mb-0">Legue Basket</h5>
         </div>
         <button
           className="btn btn-link text-white p-0"
@@ -37,24 +38,72 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
               {!isCollapsed && <span>Usuarios</span>}
             </NavLink>
           </li>
+          {
+            user.profile.name === 'SUPER_ADMIN' && (
+              <li className="nav-item">
+                <NavLink to="/league" className="nav-link">
+                  <i className="bi bi-globe2 me-2"></i>
+                  {!isCollapsed && <span>Ligas</span>}
+                </NavLink>
+              </li>
+            )
+          }
+          {
+            user.profile.name === 'MANAGER_LEAGUE' && (
+              <li className="nav-item">
+                <NavLink to="/league/manager" className="nav-link">
+                  <i className="bi bi-globe2 me-2"></i>
+                  {!isCollapsed && <span>Gestionar liga</span>}
+                </NavLink>
+              </li>
+            )
+          }
           <li className="nav-item">
-            <NavLink to="/league" className="nav-link">
-              <i className="bi bi-globe2 me-2"></i>
-              {!isCollapsed && <span>Ligas</span>}
-            </NavLink>
-          </li>
-          <li className="nav-item">
-            <NavLink to="/analytics" className="nav-link">
+            <NavLink to="/nationals-teams" className="nav-link">
               <i className="bi bi-graph-up me-2"></i>
-              {!isCollapsed && <span>Analíticas</span>}
+              {!isCollapsed && <span>Selecciones Nacionales</span>}
             </NavLink>
           </li>
-          <li className="nav-item">
-            <NavLink to="/settings" className="nav-link">
-              <i className="bi bi-gear me-2"></i>
-              {!isCollapsed && <span>Configuración</span>}
-            </NavLink>
-          </li>
+          {
+            user.profile.name === 'MANAGER_LEAGUE' && (
+              <li className="nav-item">
+                <NavLink to="/teams" className="nav-link">
+                  <i className="bi bi-gear me-2"></i>
+                  {!isCollapsed && <span>Equipos</span>}
+                </NavLink>
+              </li>
+            )
+          }
+          {
+            user.profile.name === 'MANAGER_TEAM' && (
+              <li className="nav-item">
+                <NavLink to="/teams/manager" className="nav-link">
+                  <i className="bi bi-gear me-2"></i>
+                  {!isCollapsed && <span>Mi Equipo</span>}
+                </NavLink>
+              </li>
+            )
+          }
+          {
+            user.profile.name === 'MANAGER_NATIONAL_TEAM' && (
+              <li className="nav-item">
+                <NavLink to="/national-teams/manager" className="nav-link">
+                  <i className="bi bi-gear me-2"></i>
+                  {!isCollapsed && <span>Equipo Nacional</span>}
+                </NavLink>
+              </li>
+            )
+          }
+          {
+            (user.profile.name === 'MANAGER_NATIONAL_TEAM' || user.profile.name === 'MANAGER_TEAM') && (
+              <li className="nav-item">
+                <NavLink to="/players" className="nav-link">
+                  <i className="bi bi-people me-2"></i>
+                  {!isCollapsed && <span>Jugadores</span>}
+                </NavLink>
+              </li>
+            )
+          }
         </ul>
       </nav>
       <div className="sidebar-footer">

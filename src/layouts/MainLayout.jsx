@@ -19,7 +19,15 @@ const MainLayout = ({ onLogout }) => {
       '/users': 'Usuarios',
       '/league': 'Ligas',
       '/analytics': 'Analíticas',
-      '/settings': 'Configuración'
+      '/teams': 'Equipos',
+      '/league/manager': 'Gestionar mi liga',
+      '/players': 'Jugadores',
+      '/players/add': 'Agregar Jugador',
+      '/players/type/league': 'Jugadores de Liga',
+      '/players/type/national': 'Jugadores Nacionales',
+      '/nationals-teams': 'Selecciones Nacionales',
+      '/nationals-teams/add': 'Agregar Equipo Nacional',
+      '/nationals-teams/edit': 'Editar Equipo Nacional',
     };
     return titles[path] || 'Dashboard';
   };

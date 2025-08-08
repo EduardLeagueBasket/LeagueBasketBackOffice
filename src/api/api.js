@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Base de tu backend (puedes usar variables de entorno para mayor flexibilidad)
-const BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+const BASE_URL = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:8000/api';
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -30,15 +30,18 @@ axiosInstance.interceptors.request.use((config) => {
 // Funciones generales
 
 export const apiGet = async (url, params = {}, headers = {}) => {
+  console.log('apiGet called with:', { url, params, headers });
+  console.log('Full URL:', `${BASE_URL}${url}`);
   const response = await axiosInstance.get(url, {
     params,
     headers
   });
+  console.log('apiGet response:', response.data);
   return response.data;
 };
 
-export const apiPost = async (url, data, headers = {}) => {
-  const response = await axiosInstance.post(url, data, { headers });
+export const apiPost = async (url, data, config = {}) => {
+  const response = await axiosInstance.post(url, data, config);
   return response.data;
 };
 
