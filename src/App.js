@@ -23,6 +23,9 @@ import PlayersByType from './pages/player/PlayersByType';
 import NationalTeams from './pages/nationalTeams/Index';
 import AddNationalTeam from './pages/nationalTeams/Add';
 import EditNationalTeam from './pages/nationalTeams/Edit';
+import NationalGames from './pages/nationalGames/Index';
+import AddNationalGame from './pages/nationalGames/Add';
+import EditNationalGame from './pages/nationalGames/Edit';
 
 const App = () => {
   const user = useSelector((state) => state.auth.user);
@@ -65,6 +68,9 @@ const App = () => {
           <Route path="nationals-teams" element={<NationalTeams />} />
           <Route path="nationals-teams/add" element={<AddNationalTeam />} />
           <Route path="nationals-teams/edit/:id" element={<EditNationalTeam />} />
+          <Route path="national-games" element={<NationalGames />} />
+          <Route path="national-games/add" element={<AddNationalGame />} />
+          <Route path="national-games/edit/:id" element={<EditNationalGame />} />
         </Route>
       </Routes>
     </BrowserRouter>

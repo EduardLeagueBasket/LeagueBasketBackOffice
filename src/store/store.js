@@ -14,6 +14,10 @@ import createNationalTeamReducer from './nationalTeams/createNationalTeamSlice';
 import getNationalTeamsReducer from './nationalTeams/getNationalTeamsSlice';
 import updateNationalTeamReducer from './nationalTeams/updateNationalTeamSlice';
 import getNationalTeamPlayersReducer from './player/getNationalTeamPlayersSlice';
+import createNationalGameReducer from './nationalGames/createNationalGameSlice';
+import getNationalGamesReducer from './nationalGames/getNationalGamesSlice';
+import updateNationalGameReducer from './nationalGames/updateNationalGameSlice';
+import deleteNationalGameReducer from './nationalGames/deleteNationalGameSlice';
 
 export const store = configureStore({
   reducer: {
@@ -38,5 +42,10 @@ export const store = configureStore({
     createNationalTeam: createNationalTeamReducer,
     nationalTeams: getNationalTeamsReducer,
     updateNationalTeam: updateNationalTeamReducer,
+    // national games
+    createNationalGame: createNationalGameReducer,
+    nationalGames: getNationalGamesReducer,
+    updateNationalGame: updateNationalGameReducer,
+    deleteNationalGame: deleteNationalGameReducer,
   },
 });

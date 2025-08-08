@@ -28,6 +28,9 @@ const MainLayout = ({ onLogout }) => {
       '/nationals-teams': 'Selecciones Nacionales',
       '/nationals-teams/add': 'Agregar Equipo Nacional',
       '/nationals-teams/edit': 'Editar Equipo Nacional',
+      '/national-games': 'Juegos Nacionales',
+      '/national-games/add': 'Agregar Juego Nacional',
+      '/national-games/edit': 'Editar Juego Nacional',
     };
     return titles[path] || 'Dashboard';
   };

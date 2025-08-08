@@ -60,8 +60,14 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
           }
           <li className="nav-item">
             <NavLink to="/nationals-teams" className="nav-link">
-              <i className="bi bi-graph-up me-2"></i>
+              <i className="bi bi-flag me-2"></i>
               {!isCollapsed && <span>Selecciones Nacionales</span>}
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink to="/national-games" className="nav-link">
+              <i className="bi bi-calendar-event me-2"></i>
+              {!isCollapsed && <span>Juegos Nacionales</span>}
             </NavLink>
           </li>
           {
