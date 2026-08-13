@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { getUsers } from '../../store/usersSlice';
@@ -12,28 +12,25 @@ const Users = () => {
   const { user: currentUser } = useSelector((state) => state.auth);
   const isSuperAdmin = currentUser?.profile?.name === 'SUPER_ADMIN';
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('id');
-  const [sortDirection, setSortDirection] = useState('asc');
-  const [activeTab, setActiveTab] = useState('manager-teams');
-  const [typeUser, setTypeUser] = useState(!isSuperAdmin ? 'manager-teams' : 'league-assistants');
+  const [typeUser] = useState(!isSuperAdmin ? 'manager-teams' : 'league-assistants');
 
-  const handleGetUsers = async () => {
+  const handleGetUsers = useCallback(async () => {
     const params = {
       page: currentPage,
       limit: isSuperAdmin ? pageSize : 100,
       search: searchTerm,
-      sortField: sortField,
-      sortDirection: sortDirection,
+      sortField: 'id',
+      sortDirection: 'asc',
       typeUser: typeUser
     };
     await dispatch(getUsers(params));
-  };
+  }, [currentPage, dispatch, isSuperAdmin, pageSize, searchTerm, typeUser]);
 
   useEffect(() => {
     handleGetUsers();
-  }, [currentPage, pageSize, sortField, sortDirection, typeUser]);
+  }, [handleGetUsers]);
 
   const handleSearch = () => {
     setSearchTerm(searchTerm.trim());
@@ -41,10 +38,7 @@ const Users = () => {
     handleGetUsers();
   };
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    setTypeUser(tab);
-  };
+  // `typeUser` quedará para cuando implementemos tabs/filtros
 
   return (
     <div className="container">

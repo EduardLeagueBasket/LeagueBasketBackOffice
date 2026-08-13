@@ -1,45 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { ClipLoader } from "react-spinners";
+import { ClipLoader } from 'react-spinners';
 import Swal from 'sweetalert2';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import { getUsers } from '../../store/usersSlice';
-import ButtonAction from '../../components/Button/ButtonAction';
 import { createTeam } from '../../store/teams/createTeamSlice';
+import { getTeams } from '../../store/teams/listTeamsSlice';
+import { getCompetitions } from '../../store/competitionsSlice';
 
 const AddTeam = () => {
   const dispatch = useDispatch();
 
-  const { user: currentUser } = useSelector((state) => state.auth);
-  const { users = [], loading: usersLoading } = useSelector(state => state.users);
+  const { users = [], loading: usersLoading } = useSelector((state) => state.users);
+  const { competitions = [], loading: competitionsLoading = false } = useSelector(
+    (state) => state.competitions || {},
+  );
+
   const [userList, setUserList] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
+    competitionId: '',
     managerUserId: '',
-    logoUrl: '',
   });
+
+  /** Archivo local; la subida a Cloudinary ocurre solo al crear el equipo en el backend. */
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
+  const [logoInputKey, setLogoInputKey] = useState(0);
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     dispatch(getUsers({ limit: 100, page: 1, typeUser: 'manager-teams' }));
-  }, []);
+    dispatch(getCompetitions());
+  }, [dispatch]);
 
   useEffect(() => {
-    handleUser();
+    const nextUserList = users.filter((u) => u.profile?.name === 'MANAGER_TEAM');
+    setUserList(nextUserList);
   }, [users]);
 
-  const handleUser = () => {
-    const userList = users.filter(user => user.profile.name === 'MANAGER_TEAM');
-    setUserList(userList);
-  };
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(logoPreviewUrl);
+      }
+    };
+  }, [logoPreviewUrl]);
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Validación del nombre
     if (!formData.name.trim()) {
       newErrors.name = 'El nombre del equipo es requerido';
     } else if (formData.name.trim().length < 3) {
@@ -47,14 +60,17 @@ const AddTeam = () => {
     } else if (formData.name.trim().length > 50) {
       newErrors.name = 'El nombre no puede exceder 50 caracteres';
     } else {
-      // Validación de caracteres especiales (opcional)
-      const nameRegex = /^[a-zA-Z0-9\s\-_\.]+$/;
+      const nameRegex = /^[a-zA-Z0-9\s\-_.]+$/;
       if (!nameRegex.test(formData.name.trim())) {
-        newErrors.name = 'El nombre solo puede contener letras, números, espacios, guiones, guiones bajos y puntos';
+        newErrors.name =
+          'El nombre solo puede contener letras, números, espacios, guiones, guiones bajos y puntos';
       }
     }
 
-    // Validación del gerente
+    if (!formData.competitionId) {
+      newErrors.competitionId = 'Debe seleccionar una competencia (catálogo)';
+    }
+
     if (!formData.managerUserId) {
       newErrors.managerUserId = 'Debe seleccionar un gerente de equipo';
     }
@@ -65,24 +81,34 @@ const AddTeam = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
 
-    // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         [name]: '',
       }));
     }
   };
 
+  const handleLogoFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (logoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(logoPreviewUrl);
+    }
+
+    setLogoFile(file);
+    setLogoPreviewUrl(URL.createObjectURL(file));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validar formulario antes de enviar
     if (!validateForm()) {
       Swal.fire({
         icon: 'error',
@@ -96,31 +122,36 @@ const AddTeam = () => {
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        name: formData.name.trim(),
-        managerUserId: formData.managerUserId,
-        logoUrl: formData.logoUrl,
-      };
-      console.log('Payload a enviar:', payload);
+      const fd = new FormData();
+      fd.append('name', formData.name.trim());
+      fd.append('competitionId', formData.competitionId);
+      fd.append('managerUserId', formData.managerUserId);
+      if (logoFile) {
+        fd.append('file', logoFile);
+      }
 
-      await dispatch(createTeam(payload)).unwrap();
+      await dispatch(createTeam(fd)).unwrap();
+      dispatch(getTeams());
 
       Swal.fire({
         icon: 'success',
         title: 'Equipo creado correctamente',
         confirmButtonText: 'Aceptar',
       }).then(() => {
-        // Limpiar formulario después del éxito
         setFormData({
           name: '',
+          competitionId: '',
           managerUserId: '',
-          logoUrl: '',
         });
         setErrors({});
+        setLogoFile(null);
+        if (logoPreviewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(logoPreviewUrl);
+        }
+        setLogoPreviewUrl('');
+        setLogoInputKey((k) => k + 1);
       });
-
     } catch (error) {
-      console.error('Error creando equipo:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -132,15 +163,7 @@ const AddTeam = () => {
     }
   };
 
-  const handleCancel = () => {
-    setFormData({
-      name: '',
-      managerUserId: '',
-      logoUrl: '',
-    });
-    setErrors({});
-  };
-
+  const logoPreview = logoPreviewUrl;
 
   return (
     <div className="container mt-4">
@@ -151,20 +174,47 @@ const AddTeam = () => {
             <ButtonNavigation url="/teams" icon="bi bi-arrow-left" text="Volver" />
           </div>
         </div>
+
         <div className="card-body">
-          {/* Logo de la liga */}
-          {formData.logoUrl && (
+          {logoPreview && (
             <div className="text-center mb-4">
               <img
-                src={formData.logoUrl}
-                alt="Logo de la liga"
+                src={logoPreview}
+                alt="Logo del equipo"
                 className="img-thumbnail"
                 style={{ maxWidth: '150px', maxHeight: '150px' }}
               />
             </div>
           )}
 
-          <form id="league-form" onSubmit={handleSubmit}>
+          <form id="team-form" onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label className="form-label">Competencia (catálogo) *</label>
+              <select
+                className={`form-select ${errors.competitionId ? 'is-invalid' : ''}`}
+                name="competitionId"
+                value={formData.competitionId}
+                onChange={handleChange}
+                disabled={competitionsLoading || isSubmitting}
+              >
+                <option value="">Selecciona una competencia</option>
+                {competitions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.season ? ` — ${c.season}` : ''}
+                  </option>
+                ))}
+              </select>
+              {errors.competitionId && (
+                <div className="invalid-feedback">{errors.competitionId}</div>
+              )}
+              {competitionsLoading && (
+                <small className="text-muted">
+                  <ClipLoader color="#007bff" size={12} /> Cargando competencias…
+                </small>
+              )}
+            </div>
+
             <div className="mb-3">
               <label className="form-label">Nombre del Equipo *</label>
               <input
@@ -177,13 +227,22 @@ const AddTeam = () => {
                 maxLength={50}
                 disabled={isSubmitting}
               />
-              {errors.name && (
-                <div className="invalid-feedback">
-                  {errors.name}
-                </div>
-              )}
-              <small className="text-muted">
-                Mínimo 3 caracteres, máximo 50 caracteres
+              {errors.name && <div className="invalid-feedback">{errors.name}</div>}
+              <small className="text-muted">Mínimo 3 caracteres, máximo 50 caracteres</small>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Logo (opcional)</label>
+              <input
+                key={logoInputKey}
+                type="file"
+                className="form-control"
+                accept="image/*"
+                onChange={handleLogoFile}
+                disabled={isSubmitting}
+              />
+              <small className="text-muted d-block mt-1">
+                El archivo se sube al crear el equipo; no se guarda en la nube hasta enviar el formulario.
               </small>
             </div>
 
@@ -197,33 +256,32 @@ const AddTeam = () => {
                 disabled={usersLoading || isSubmitting}
               >
                 <option value="">Selecciona un gerente de equipo</option>
-                {userList.map(user => (
+                {userList.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} {user.lastName ?? ''} - {user.email}
                   </option>
                 ))}
               </select>
               {errors.managerUserId && (
-                <div className="invalid-feedback">
-                  {errors.managerUserId}
-                </div>
+                <div className="invalid-feedback">{errors.managerUserId}</div>
               )}
               {usersLoading && (
                 <small className="text-muted">
-                  <ClipLoader color="#007bff" size={12} /> Cargando gerentes...
+                  <ClipLoader color="#007bff" size={12} /> Cargando gerentes…
                 </small>
               )}
             </div>
+
             <div className="mb-3 d-flex justify-content-end gap-2">
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSubmitting || usersLoading}
+                disabled={isSubmitting || usersLoading || competitionsLoading}
               >
                 {isSubmitting ? (
                   <>
                     <ClipLoader color="#fff" size={16} className="me-2" />
-                    Creando...
+                    Creando…
                   </>
                 ) : (
                   <>

@@ -1,14 +1,21 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { apiPost } from "../../api/api";
+import {
+  NATIONAL_MATCHES_API_PATH,
+  buildCreateNationalMatchBody,
+  normalizeNationalMatchFromApi,
+} from "../../utils/nationalMatchApi";
+import { axiosErrorToMessage } from "../../utils/apiErrorMessage";
 
 export const createNationalGame = createAsyncThunk(
   'nationalGames/create',
   async (data, thunkAPI) => {
     try {
-      const response = await apiPost('/national-games', data);
-      return response;
+      const body = buildCreateNationalMatchBody(data);
+      const response = await apiPost(NATIONAL_MATCHES_API_PATH, body);
+      return normalizeNationalMatchFromApi(response);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+      return thunkAPI.rejectWithValue(axiosErrorToMessage(error));
     }
   }
 );

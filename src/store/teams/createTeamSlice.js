@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { apiPost } from "../../api/api";
+import { adminPath, apiPost, apiPostFormData } from "../../api/api";
 
 export const createTeamSlice = createSlice({
   name: 'createTeam',
@@ -36,7 +36,11 @@ export const createTeam = createAsyncThunk(
   'teams/create',
   async (data, thunkAPI) => {
     try {
-      const response = await apiPost('/teams', data);
+      const useMultipart =
+        typeof FormData !== 'undefined' && data instanceof FormData;
+      const response = useMultipart
+        ? await apiPostFormData(adminPath('/teams'), data)
+        : await apiPost(adminPath('/teams'), data);
       return response;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || error.message);

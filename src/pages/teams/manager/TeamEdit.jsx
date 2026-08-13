@@ -1,103 +1,139 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getTeamByManager } from '../../../store/teams/getTeamSlice';
-import { ClipLoader } from "react-spinners";
+import { ClipLoader } from 'react-spinners';
 import Swal from 'sweetalert2';
-import UploadLeagueLogoModal from '../../../components/Modals/UploadLeagueLogo';
+import ButtonNavigation from '../../../components/Button/ButtonNavigation';
+import { getTeamByManager, updateTeam } from '../../../store/teams/getTeamSlice';
 
 const TeamManagerEdit = () => {
   const dispatch = useDispatch();
 
-  const { team = {}, loading: updateLoading } = useSelector(state => state.team);
+  const { team = {}, loading } = useSelector((state) => state.team);
   const { user: currentUser } = useSelector((state) => state.auth);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    country: '',
-    managerUserId: '',
-    logoUrl: '',
-  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({ name: '' });
+
+  /** Logo nuevo (solo se sube al guardar; el backend envía a Cloudinary). */
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreviewBlob, setLogoPreviewBlob] = useState('');
+  const [logoInputKey, setLogoInputKey] = useState(0);
 
   useEffect(() => {
     dispatch(getTeamByManager());
-    //dispatch(getUsers({ limit: 100, page: 1 }));
-    //dispatch(getManagerLeague()); // Obtener la liga del gerente logueado
-  }, []);
+  }, [dispatch]);
 
-  /*useEffect(() => {
-    if (managerLeague && Object.keys(managerLeague).length > 0) {
-      setFormData({
-        name: managerLeague.name || '',
-        description: managerLeague.description || '',
-        country: managerLeague.country || '',
-        managerUserId: managerLeague.managerUserId || '',
-        logoUrl: managerLeague.logoUrl || '',
-      });
+  useEffect(() => {
+    if (team?.id) {
+      setFormData({ name: team.name || '' });
     }
-  }, [managerLeague]);*/
+  }, [team?.id, team?.name]);
+
+  useEffect(() => {
+    return () => {
+      if (logoPreviewBlob.startsWith('blob:')) {
+        URL.revokeObjectURL(logoPreviewBlob);
+      }
+    };
+  }, [logoPreviewBlob]);
+
+  const displayLogo = useMemo(() => {
+    if (logoPreviewBlob) return logoPreviewBlob;
+    return team.logo || team.logoUrl || '';
+  }, [logoPreviewBlob, team.logo, team.logoUrl]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
+  const handleLogoFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (logoPreviewBlob.startsWith('blob:')) {
+      URL.revokeObjectURL(logoPreviewBlob);
+    }
+    setLogoFile(file);
+    setLogoPreviewBlob(URL.createObjectURL(file));
+  };
+
+  const resetLogoPick = () => {
+    setLogoFile(null);
+    if (logoPreviewBlob.startsWith('blob:')) {
+      URL.revokeObjectURL(logoPreviewBlob);
+    }
+    setLogoPreviewBlob('');
+    setLogoInputKey((k) => k + 1);
+  };
+
+  const handleCancel = () => {
+    setFormData({ name: team.name || '' });
+    resetLogoPick();
+    setIsEditing(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!team?.id) return;
+
+    const nameTrim = formData.name.trim();
+    if (!nameTrim) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Validación',
+        text: 'El nombre del equipo es obligatorio.',
+        confirmButtonText: 'Aceptar',
+      });
+      return;
+    }
 
     try {
-      const payload = {
-        //        id: managerLeague?.id,
-        name: formData.name,
-        description: formData.description,
-        country: formData.country,
-        managerUserId: formData.managerUserId,
-        logoUrl: formData.logoUrl,
-      };
-      console.log(payload);
+      const fd = new FormData();
+      fd.append('name', nameTrim);
+      if (logoFile) {
+        fd.append('file', logoFile);
+      }
 
-      //await dispatch(updateLeague(payload)).unwrap();
+      await dispatch(updateTeam({ teamId: team.id, formData: fd })).unwrap();
 
       Swal.fire({
         icon: 'success',
-        title: 'Liga actualizada correctamente',
+        title: 'Equipo actualizado',
         confirmButtonText: 'Aceptar',
       });
 
+      resetLogoPick();
       setIsEditing(false);
-    } catch (error) {
-      console.error('Error actualizando liga:', error);
+    } catch {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error actualizando liga. Intenta nuevamente.',
+        text: 'No se pudo actualizar el equipo.',
         confirmButtonText: 'Aceptar',
       });
     }
   };
 
-  const handleCancel = () => {
-    // Restaurar valores originales
-    setFormData({
-      //name: managerLeague?.name || '',
-      //description: managerLeague?.description || '',
-      //country: managerLeague?.country || '',
-      //managerUserId: managerLeague?.managerUserId || '',
-      //logoUrl: managerLeague?.logoUrl || '',
-    });
-    setIsEditing(false);
-  };
-
-  if (updateLoading) {
+  if (loading && !team?.id) {
     return (
       <div className="container mt-4 text-center">
         <ClipLoader color="#007bff" size={50} />
-        <p className="mt-2">Cargando liga...</p>
+        <p className="mt-2">Cargando equipo…</p>
+      </div>
+    );
+  }
+
+  if (!team?.id) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-info">
+          No hay un equipo asociado a tu cuenta o no se pudo cargar.
+        </div>
+        <ButtonNavigation url="/teams" icon="bi bi-arrow-left" text="Volver" />
       </div>
     );
   }
@@ -105,46 +141,35 @@ const TeamManagerEdit = () => {
   return (
     <div className="container mt-4">
       <div className="card shadow">
-        <div className="card-header d-flex justify-content-between align-items-center">
-          <h4>Mi Equipo - {team?.name || 'Cargando...'}</h4>
-          <div className="d-flex gap-2">
-            {team?.id && (
-              <button
-                type="button"
-                className="btn btn-outline-primary"
-                onClick={() => setShowUploadModal(true)}
-              >
-                <i className="bi bi-pencil"></i> Cambiar Logo
-              </button>
-            )}
+        <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h4 className="mb-0">Mi equipo — {team.name || 'Sin nombre'}</h4>
+          <div className="d-flex gap-2 flex-wrap">
+            <ButtonNavigation url="/teams" icon="bi bi-arrow-left" text="Volver" />
             {!isEditing ? (
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setIsEditing(true)}
               >
-                <i className="bi bi-pencil"></i> Editar
+                <i className="bi bi-pencil me-1"></i>
+                Editar
               </button>
             ) : (
               <div className="d-flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleCancel}
-                >
-                  <i className="bi bi-x"></i> Cancelar
+                <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+                  <i className="bi bi-x-lg me-1"></i>
+                  Cancelar
                 </button>
                 <button
                   type="submit"
-                  form="league-form"
+                  form="team-edit-form"
                   className="btn btn-success"
-                  disabled={updateLoading}
+                  disabled={loading}
                 >
-                  {updateLoading ? (
-                    <ClipLoader color="#fff" size={16} />
-                  ) : (
+                  {loading ? <ClipLoader color="#fff" size={16} /> : (
                     <>
-                      <i className="bi bi-check"></i> Guardar
+                      <i className="bi bi-check-lg me-1"></i>
+                      Guardar
                     </>
                   )}
                 </button>
@@ -152,114 +177,75 @@ const TeamManagerEdit = () => {
             )}
           </div>
         </div>
+
         <div className="card-body">
-          {/* Logo de la liga */}
-          {team?.logoUrl && (
+          {displayLogo ? (
             <div className="text-center mb-4">
               <img
-                src={team.logoUrl}
-                alt="Logo de la liga"
+                src={displayLogo}
+                alt="Logo del equipo"
                 className="img-thumbnail"
-                style={{ maxWidth: '150px', maxHeight: '150px' }}
+                style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'contain' }}
               />
             </div>
+          ) : (
+            <p className="text-muted text-center small">Sin logo</p>
           )}
 
-          <form id="league-form" onSubmit={handleSubmit}>
+          <form id="team-edit-form" onSubmit={handleSubmit}>
             <div className="mb-3">
-              <label className="form-label">Nombre</label>
+              <label className="form-label">Nombre del equipo</label>
               <input
                 type="text"
                 className="form-control"
                 name="name"
-                value={team?.name}
+                value={formData.name}
                 onChange={handleChange}
                 disabled={!isEditing}
-                required
+                maxLength={80}
               />
-              {!isEditing && (
-                <small className="text-muted">
-                  El nombre de la liga no puede ser modificado
+            </div>
+
+            {isEditing && (
+              <div className="mb-3">
+                <label className="form-label">Cambiar logo (opcional)</label>
+                <input
+                  key={logoInputKey}
+                  type="file"
+                  className="form-control"
+                  accept="image/*"
+                  onChange={handleLogoFile}
+                  disabled={loading}
+                />
+                <small className="text-muted d-block mt-1">
+                  La imagen se sube al guardar; no se envía a la nube hasta confirmar.
                 </small>
-              )}
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">Descripción</label>
-              <textarea
-                className="form-control"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                disabled={!isEditing}
-                rows="3"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">País</label>
-              <input
-                type="text"
-                className="form-control"
-                name="country"
-                value={`${team?.league?.country}`}
-                disabled={true}
-                required
-              />
-            </div>
+              </div>
+            )}
 
             <div className="mb-3">
               <label className="form-label">Gerente</label>
               <input
                 type="text"
                 className="form-control"
-                name="usermanager"
-                value={`${currentUser.name} ${currentUser.lastName}`}
-                disabled={true}
-                required
+                value={
+                  currentUser
+                    ? `${currentUser.name ?? ''} ${currentUser.lastName ?? ''}`.trim()
+                    : ''
+                }
+                disabled
               />
             </div>
 
-            {/* Información adicional solo lectura */}
-            {team?.createdAt && (
+            {team.competitionId && (
               <div className="mb-3">
-                <label className="form-label">Fecha de Creación</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={new Date(team.createdAt).toLocaleDateString('es-ES')}
-                  disabled
-                />
-              </div>
-            )}
-
-            {team?.teamsCount !== undefined && (
-              <div className="mb-3">
-                <label className="form-label">Equipos Registrados</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={team.teamsCount || 0}
-                  disabled
-                />
+                <label className="form-label">ID competencia</label>
+                <input type="text" className="form-control" value={team.competitionId} disabled />
               </div>
             )}
           </form>
         </div>
       </div>
-
-      <UploadLeagueLogoModal
-        show={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onUploaded={(uploadedUrl) => {
-          setFormData(prev => ({ ...prev, logoUrl: uploadedUrl }));
-          setShowUploadModal(false);
-        }}
-        referenceId={team?.id}
-        reloadData={() => getTeamByManager()}
-        folder="team-logo"
-        type="team"
-      />
     </div>
   );
 };

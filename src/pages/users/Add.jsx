@@ -34,7 +34,7 @@ const Users = () => {
 
     if (result.payload.length > 0) {
       const rawProfiles = result.payload;
-
+console.log('rawProfiles', rawProfiles);
       const filteredProfiles = rawProfiles
         .filter(profile => profile.name !== 'USER')
         .map(profile => {

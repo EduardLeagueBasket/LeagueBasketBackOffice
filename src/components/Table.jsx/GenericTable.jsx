@@ -5,11 +5,15 @@ function GenericTable({
   columns = [],
   data = [],
   onEdit = () => { },
-  onDelete = () => { },
+  onDelete = null,
+  onCancel = null,
+  canCancel = () => true,
   loading = false,
   currentPage = 1,
   totalPages = 1,
   onPageChange = () => { },
+  showActions = true,
+  showEdit = true,
 }) {
 
   function getValueByAccessor(item, accessor) {
@@ -17,6 +21,8 @@ function GenericTable({
     // Permite 'profile.name' acceso profundo
     return accessor.split('.').reduce((obj, key) => obj?.[key], item) ?? '--';
   }
+
+  const colCount = columns.length + (showActions ? 1 : 0);
 
   return (
     <div>
@@ -27,13 +33,13 @@ function GenericTable({
               {columns.map((col, idx) => (
                 <th key={idx}>{col.header}</th>
               ))}
-              <th>Acciones</th>
+              {showActions && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={columns.length + 1} className="text-center">
+                <td colSpan={colCount} className="text-center">
                   <ClipLoader color={"#000"} size={40} />
                 </td>
               </tr>
@@ -45,26 +51,43 @@ function GenericTable({
                     //{<td key={cidx}>{item[col.accessor]}</td>}
                     <td key={cidx}>{col.cell ? col.cell(item) : getValueByAccessor(item, col.accessor)}</td>
                   ))}
-                  <td>
-                    <button
-                      className="btn btn-sm btn-outline-primary me-2"
-                      onClick={() => onEdit(item)}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => onDelete(item)}
-                    >
-                      🗑️
-                    </button>
-                  </td>
+                  {showActions && (
+                    <td>
+                      {showEdit && (
+                        <button
+                          className="btn btn-sm btn-outline-primary me-2"
+                          onClick={() => onEdit(item)}
+                        >
+                          ✏️
+                        </button>
+                      )}
+                      {onCancel && canCancel(item) && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-warning me-2"
+                          title="Cancelar partido"
+                          onClick={() => onCancel(item)}
+                        >
+                          <i className="bi bi-x-circle"></i>
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => onDelete(item)}
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             ) : (
               !loading && (
                 <tr>
-                  <td colSpan={columns.length + 1} className="text-center">
+                  <td colSpan={colCount} className="text-center">
                     No hay registros.
                   </td>
                 </tr>

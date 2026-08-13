@@ -6,6 +6,9 @@ import Swal from 'sweetalert2';
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getNationalTeamById, updateNationalTeam, resetUpdateNationalTeamState } from '../../store/nationalTeams/updateNationalTeamSlice';
 import UploadNationalTeamLogoModal from '../../components/Modals/UploadNationalTeamLogo';
+import { getCatalogCountries } from '../../store/catalogCountriesSlice';
+import { getCompetitions } from '../../store/competitionsSlice';
+import { getUsers } from '../../store/usersSlice';
 
 export default function EditNationalTeam() {
   const dispatch = useDispatch();
@@ -14,12 +17,22 @@ export default function EditNationalTeam() {
 
   const { user: currentUser } = useSelector((state) => state.auth);
   const { nationalTeam, loading, error, success } = useSelector(state => state.updateNationalTeam);
+  const { countries = [] } = useSelector((state) => state.catalogCountries || {});
+  const { competitions = [], loading: competitionsLoading = false } = useSelector((state) => state.competitions || {});
+  const { users = [], loading: usersLoading = false } = useSelector((state) => state.users || {});
   const [showUploadModal, setShowUploadModal] = useState(false);
+
+  const managerUsers = users.filter((u) => u?.profile?.name === 'MANAGER_NATIONAL_TEAM');
 
   const [formData, setFormData] = useState({
     name: '',
-    country: '',
-    logoUrl: '',
+    countryId: '',
+    countryCode: '',
+    gender: 'male',
+    category: 'senior',
+    competitionId: '',
+    logo: '',
+    managerUserId: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -32,14 +45,37 @@ export default function EditNationalTeam() {
   }, [id, dispatch]);
 
   useEffect(() => {
+    dispatch(getCatalogCountries());
+    dispatch(getCompetitions());
+    dispatch(getUsers({ page: 1, limit: 200 }));
+  }, [dispatch]);
+
+  useEffect(() => {
     if (nationalTeam) {
+      const countryCode = (nationalTeam.countryCode || '').toUpperCase();
+      const matchCountry = countries.find((c) => (c.countryCode || '').toUpperCase() === countryCode);
+
       setFormData({
         name: nationalTeam.name || '',
-        country: nationalTeam.country || '',
-        logoUrl: nationalTeam.logoUrl || '',
+        countryId: matchCountry?.id || '',
+        countryCode,
+        gender: nationalTeam.gender || 'male',
+        category: nationalTeam.category || 'senior',
+        competitionId: nationalTeam.competitionId || '',
+        logo: nationalTeam.logo || '',
+        managerUserId: nationalTeam.managerUserId || '',
       });
     }
-  }, [nationalTeam]);
+  }, [nationalTeam, countries]);
+
+  const selectedCountry = countries.find((c) => c.id === formData.countryId);
+  const competitionTypeAllowed = formData.category === 'three_x_three' ? '3x3' : 'national_team';
+  const competitionOptions = competitions.filter((c) => {
+    const cCountryId = c?.countryId ?? c?.country?.id;
+    if (formData.countryId && cCountryId !== formData.countryId) return false;
+    if (c?.type && c.type !== competitionTypeAllowed) return false;
+    return true;
+  });
 
   useEffect(() => {
     if (success) {
@@ -66,18 +102,17 @@ export default function EditNationalTeam() {
       newErrors.name = 'El nombre no puede exceder 50 caracteres';
     } else {
       // Validación de caracteres especiales (opcional)
-      const nameRegex = /^[a-zA-Z0-9\s\-_\.]+$/;
+      const nameRegex = /^[a-zA-Z0-9\s\-_.]+$/;
       if (!nameRegex.test(formData.name.trim())) {
         newErrors.name = 'El nombre solo puede contener letras, números, espacios, guiones, guiones bajos y puntos';
       }
     }
 
-    // Validación del país
-    if (!formData.country.trim()) {
-      newErrors.country = 'El país es requerido';
-    } else if (formData.country.trim().length < 2) {
-      newErrors.country = 'El país debe tener al menos 2 caracteres';
-    }
+    if (!formData.countryId) newErrors.countryId = 'El país es requerido';
+    if (!formData.countryCode.trim()) newErrors.countryCode = 'El código de país es requerido';
+    if (!formData.gender) newErrors.gender = 'El género es requerido';
+    if (!formData.category) newErrors.category = 'La categoría es requerida';
+    if (!formData.managerUserId) newErrors.managerUserId = 'Debes seleccionar el manager de la selección';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -85,10 +120,21 @@ export default function EditNationalTeam() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+
+      if (name === 'countryId') {
+        const country = countries.find((c) => c.id === value);
+        next.countryCode = (country?.countryCode || '').toUpperCase();
+        next.competitionId = '';
+      }
+
+      if (name === 'category') {
+        next.competitionId = '';
+      }
+
+      return next;
+    });
 
     // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[name]) {
@@ -118,19 +164,22 @@ export default function EditNationalTeam() {
     try {
       const payload = {
         name: formData.name.trim(),
-        country: formData.country.trim(),
-        logoUrl: formData.logoUrl,
+        countryCode: formData.countryCode.trim().toUpperCase(),
+        gender: formData.gender,
+        category: formData.category,
+        logo: formData.logo || undefined,
+        competitionId: formData.competitionId || undefined,
+        managerUserId: formData.managerUserId || undefined,
       };
-      console.log('Payload a enviar:', payload);
 
       await dispatch(updateNationalTeam({ id, data: payload })).unwrap();
 
     } catch (error) {
-      console.error('Error actualizando equipo nacional:', error);
+      const msg = typeof error === 'string' ? error : 'Error actualizando equipo nacional. Intenta nuevamente.';
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error actualizando equipo nacional. Intenta nuevamente.',
+        text: msg,
         confirmButtonText: 'Aceptar',
       });
     } finally {
@@ -145,7 +194,7 @@ export default function EditNationalTeam() {
   const handleLogoUploaded = (logoUrl) => {
     setFormData(prev => ({
       ...prev,
-      logoUrl: logoUrl,
+      logo: logoUrl,
     }));
   };
 
@@ -220,28 +269,125 @@ export default function EditNationalTeam() {
 
             <div className="mb-3">
               <label className="form-label">País *</label>
-              <input
-                type="text"
-                className={`form-control ${errors.country ? 'is-invalid' : ''}`}
-                name="country"
-                value={formData.country}
+              <select
+                className={`form-select ${errors.countryId ? 'is-invalid' : ''}`}
+                name="countryId"
+                value={formData.countryId}
                 onChange={handleChange}
-                placeholder="Ej: España"
                 disabled={isSubmitting}
-              />
-              {errors.country && (
-                <div className="invalid-feedback">
-                  {errors.country}
-                </div>
-              )}
+                required
+              >
+                <option value="">Selecciona un país</option>
+                {countries.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.countryCode})
+                  </option>
+                ))}
+              </select>
+              {errors.countryId && <div className="invalid-feedback">{errors.countryId}</div>}
             </div>
 
-            {formData.logoUrl && (
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Código de país *</label>
+                <input
+                  type="text"
+                  className={`form-control ${errors.countryCode ? 'is-invalid' : ''}`}
+                  name="countryCode"
+                  value={formData.countryCode}
+                  onChange={handleChange}
+                  placeholder="Ej: VE"
+                  disabled={isSubmitting || !!selectedCountry}
+                  required
+                />
+                {errors.countryCode && <div className="invalid-feedback">{errors.countryCode}</div>}
+              </div>
+
+              <div className="col-md-3 mb-3">
+                <label className="form-label">Género *</label>
+                <select
+                  className={`form-select ${errors.gender ? 'is-invalid' : ''}`}
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  required
+                >
+                  <option value="male">male</option>
+                  <option value="female">female</option>
+                  <option value="mixed">mixed</option>
+                </select>
+                {errors.gender && <div className="invalid-feedback">{errors.gender}</div>}
+              </div>
+
+              <div className="col-md-3 mb-3">
+                <label className="form-label">Categoría *</label>
+                <select
+                  className={`form-select ${errors.category ? 'is-invalid' : ''}`}
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  required
+                >
+                  <option value="senior">senior</option>
+                  <option value="u23">u23</option>
+                  <option value="u19">u19</option>
+                  <option value="u17">u17</option>
+                  <option value="three_x_three">three_x_three</option>
+                </select>
+                {errors.category && <div className="invalid-feedback">{errors.category}</div>}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Competencia (opcional)</label>
+              <select
+                className="form-select"
+                name="competitionId"
+                value={formData.competitionId}
+                onChange={handleChange}
+                disabled={isSubmitting || competitionsLoading || !formData.countryId}
+              >
+                <option value="">
+                  {formData.countryId
+                    ? `Selecciona una competencia (${competitionTypeAllowed})`
+                    : 'Primero selecciona un país'}
+                </option>
+                {competitionOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Manager de la selección *</label>
+              <select
+                className={`form-select ${errors.managerUserId ? 'is-invalid' : ''}`}
+                name="managerUserId"
+                value={formData.managerUserId}
+                onChange={handleChange}
+                disabled={isSubmitting || usersLoading}
+                required
+              >
+                <option value="">Selecciona un manager</option>
+                {managerUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.lastName ?? ''} — {u.email}
+                  </option>
+                ))}
+              </select>
+              {errors.managerUserId && <div className="invalid-feedback">{errors.managerUserId}</div>}
+            </div>
+
+            {formData.logo && (
               <div className="mb-3">
                 <label className="form-label">Logo del Equipo</label>
                 <div className="text-center">
                   <img
-                    src={formData.logoUrl}
+                    src={formData.logo}
                     alt="Logo del equipo"
                     className="img-fluid rounded shadow"
                     style={{ maxHeight: '150px' }}
@@ -285,7 +431,7 @@ export default function EditNationalTeam() {
         show={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         onUploaded={handleLogoUploaded}
-        referenceId={currentUser?.id || 'temp'}
+        referenceId={id || currentUser?.id || 'temp'}
         reloadData={reloadData}
         folder="national-team-logos"
         type="national-team"

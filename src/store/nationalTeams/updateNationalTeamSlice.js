@@ -1,11 +1,11 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { apiPut, apiGet } from "../../api/api";
+import { adminPath, apiPatch, apiGet, apiDelete } from "../../api/api";
 
 export const updateNationalTeam = createAsyncThunk(
   'nationalTeams/update',
   async ({ id, data }, thunkAPI) => {
     try {
-      const response = await apiPut(`/national-teams/${id}`, data);
+      const response = await apiPatch(adminPath(`/national-teams/teams/${id}`), data);
       return response;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || error.message);
@@ -17,8 +17,20 @@ export const getNationalTeamById = createAsyncThunk(
   'nationalTeams/getById',
   async (id, thunkAPI) => {
     try {
-      const response = await apiGet(`/national-teams/${id}`);
+      const response = await apiGet(adminPath(`/national-teams/teams/${id}`));
       return response;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const deactivateNationalTeam = createAsyncThunk(
+  'nationalTeams/deactivate',
+  async (id, thunkAPI) => {
+    try {
+      const response = await apiDelete(adminPath(`/national-teams/teams/${id}`));
+      return { id, response };
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || error.message);
     }
@@ -67,6 +79,17 @@ export const updateNationalTeamSlice = createSlice({
         state.error = null;
       })
       .addCase(getNationalTeamById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(deactivateNationalTeam.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deactivateNationalTeam.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(deactivateNationalTeam.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

@@ -1,47 +1,85 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { ClipLoader } from "react-spinners";
 import Swal from 'sweetalert2';
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getNationalGames } from '../../store/nationalGames/getNationalGamesSlice';
-import { deleteNationalGame } from '../../store/nationalGames/deleteNationalGameSlice';
+import {
+  cancelNationalGame,
+  resetCancelNationalGameState,
+} from '../../store/nationalGames/cancelNationalGameSlice';
 import GenericTable from '../../components/Table.jsx/GenericTable';
 import { getGameTypeLabel, getGameTypeBadgeClass } from '../../utils/gameTypes';
+import {
+  filterAndSortNationalMatches,
+  canCancelNationalMatch,
+} from '../../utils/nationalMatchApi';
+import {
+  nationalMatchListFilters,
+  getNationalMatchStatusLabel,
+  getNationalMatchStatusBadgeClass,
+} from '../../utils/matchStatusLabels';
+import { formatErrorForDisplay } from '../../utils/apiErrorMessage';
 
 export default function NationalGames() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { nationalGames = [], loading = false, error = null } = useSelector(state => state.nationalGames);
-  const { success: deleteSuccess } = useSelector(state => state.deleteNationalGame);
+  const { nationalGames = [], loading = false, error = null } = useSelector(
+    (state) => state.nationalGames,
+  );
+  const { success: cancelSuccess } = useSelector(
+    (state) => state.cancelNationalGame,
+  );
+
+  const [listFilter, setListFilter] = useState('upcoming');
 
   useEffect(() => {
     dispatch(getNationalGames());
   }, [dispatch]);
 
   useEffect(() => {
-    if (deleteSuccess) {
+    if (cancelSuccess) {
       dispatch(getNationalGames());
+      dispatch(resetCancelNationalGameState());
     }
-  }, [deleteSuccess, dispatch]);
+  }, [cancelSuccess, dispatch]);
+
+  const filteredGames = useMemo(
+    () => filterAndSortNationalMatches(nationalGames, listFilter),
+    [nationalGames, listFilter],
+  );
 
   const handleEdit = (item) => {
     navigate(`/national-games/edit/${item.id}`);
   };
 
-  const handleDelete = (item) => {
+  const handleCancelMatch = (item) => {
     Swal.fire({
-      title: '¿Estás seguro?',
-      text: `¿Deseas eliminar el juego contra ${item.opponentName}?`,
+      title: '¿Cancelar partido?',
+      text: `El juego contra ${item.opponentName} quedará como cancelado (no se elimina del historial).`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(deleteNationalGame(item.id));
+      confirmButtonText: 'Sí, cancelar partido',
+      cancelButtonText: 'No',
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        await dispatch(cancelNationalGame(item.id)).unwrap();
+        Swal.fire({
+          icon: 'success',
+          title: 'Partido cancelado',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: formatErrorForDisplay(err),
+        });
       }
     });
   };
@@ -62,43 +100,77 @@ export default function NationalGames() {
           )}
           <span>{item.nationalTeam?.name || 'N/A'}</span>
         </div>
-      )
+      ),
     },
     {
       key: 'opponentName',
       header: 'Rival',
-      accessor: 'opponentName'
+      accessor: 'opponentName',
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      cell: (item) => (
+        <span
+          className={`badge ${getNationalMatchStatusBadgeClass(item.status)}`}
+        >
+          {getNationalMatchStatusLabel(item.status)}
+        </span>
+      ),
     },
     {
       key: 'gameDate',
-      header: 'Fecha del Juego',
-      cell: (item) => new Date(item.gameDate).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+      header: 'Fecha del partido',
+      cell: (item) =>
+        new Date(item.gameDate || item.matchDate).toLocaleString('es-ES', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+    },
+    {
+      key: 'score',
+      header: 'Marcador',
+      cell: (item) => {
+        const { homeScore, awayScore, status } = item;
+        if (
+          status === 'finished' &&
+          homeScore != null &&
+          awayScore != null
+        ) {
+          return (
+            <span className="text-nowrap">
+              {homeScore} — {awayScore}
+            </span>
+          );
+        }
+        return '—';
+      },
     },
     {
       key: 'location',
       header: 'Ubicación',
-      accessor: 'location'
+      accessor: 'location',
     },
     {
       key: 'gameType',
-      header: 'Tipo de Juego',
+      header: 'Tipo',
       cell: (item) => (
         <span className={`badge ${getGameTypeBadgeClass(item.gameType)}`}>
           {getGameTypeLabel(item.gameType)}
         </span>
-      )
+      ),
     },
     {
       key: 'createdAt',
-      header: 'Fecha de Creación',
-      cell: (item) => new Date(item.createdAt).toLocaleDateString('es-ES')
-    }
+      header: 'Registro',
+      cell: (item) =>
+        item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString('es-ES')
+          : '—',
+    },
   ];
 
   if (loading) {
@@ -121,7 +193,8 @@ export default function NationalGames() {
           <div className="card-body text-center">
             <div className="alert alert-danger">
               <i className="bi bi-exclamation-triangle me-2"></i>
-              Error al cargar los juegos nacionales: {error}
+              Error al cargar los juegos nacionales:{' '}
+              {formatErrorForDisplay(error)}
             </div>
           </div>
         </div>
@@ -129,27 +202,72 @@ export default function NationalGames() {
     );
   }
 
+  const emptyCopy =
+    nationalGames.length === 0
+      ? {
+          title: 'No hay juegos nacionales registrados',
+          hint: 'Comienza agregando el primer partido',
+        }
+      : {
+          title: 'Ningún partido en esta vista',
+          hint: 'Prueba otro filtro o revisa los estados de los partidos',
+        };
+
   return (
     <div className="container">
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center">
-          <h4 className="mb-0">Juegos de Equipos Nacionales</h4>
-          <ButtonNavigation url="/national-games/add" icon="bi bi-plus-lg" text="Agregar Juego" />
+        <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <h4 className="mb-0">Juegos de equipos nacionales</h4>
+          <ButtonNavigation
+            url="/national-games/add"
+            icon="bi bi-plus-lg"
+            text="Agregar juego"
+          />
         </div>
 
         <div className="card-body">
+          {nationalGames.length > 0 && (
+            <div className="row mb-3">
+              <div className="col-md-6 col-lg-4">
+                <label className="form-label mb-1">Mostrar</label>
+                <select
+                  className="form-select"
+                  value={listFilter}
+                  onChange={(e) => setListFilter(e.target.value)}
+                >
+                  {nationalMatchListFilters.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <small className="text-muted">
+                  Por defecto se muestran los próximos partidos (programados desde
+                  hoy y los en vivo).
+                </small>
+              </div>
+            </div>
+          )}
+
           {nationalGames.length === 0 ? (
             <div className="text-center py-5">
               <i className="bi bi-calendar-event display-1 text-muted"></i>
-              <h5 className="mt-3 text-muted">No hay juegos nacionales registrados</h5>
-              <p className="text-muted">Comienza agregando el primer juego</p>
+              <h5 className="mt-3 text-muted">{emptyCopy.title}</h5>
+              <p className="text-muted">{emptyCopy.hint}</p>
+            </div>
+          ) : filteredGames.length === 0 ? (
+            <div className="text-center py-5">
+              <i className="bi bi-funnel display-1 text-muted"></i>
+              <h5 className="mt-3 text-muted">{emptyCopy.title}</h5>
+              <p className="text-muted">{emptyCopy.hint}</p>
             </div>
           ) : (
             <GenericTable
-              data={nationalGames}
+              data={filteredGames}
               columns={columns}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onCancel={handleCancelMatch}
+              canCancel={canCancelNationalMatch}
               loading={loading}
             />
           )}
@@ -157,4 +275,4 @@ export default function NationalGames() {
       </div>
     </div>
   );
-} 
+}

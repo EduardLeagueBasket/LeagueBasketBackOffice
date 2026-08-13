@@ -1,11 +1,11 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { apiPost } from "../../api/api";
+import { adminPath, apiPost } from "../../api/api";
 
 export const createNationalTeam = createAsyncThunk(
   'nationalTeams/create',
   async (data, thunkAPI) => {
     try {
-      const response = await apiPost('/national-teams', data);
+      const response = await apiPost(adminPath('/national-teams/teams'), data);
       return response;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || error.message);

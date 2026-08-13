@@ -1,13 +1,13 @@
 // src/store/profileSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { apiGet } from '../api/api';
+import { adminPath, apiGet } from '../api/api';
 
 // Thunk para obtener perfiles
 export const getProfiles = createAsyncThunk(
   'profiles',
   async (_, thunkAPI) => {
     try {
-      const response = await apiGet('/profiles');
+      const response = await apiGet(adminPath('/profiles'));
       return response; // Aquí se espera que sea un array de perfiles
     } catch (error) {
       return thunkAPI.rejectWithValue('Error al obtener los perfiles');

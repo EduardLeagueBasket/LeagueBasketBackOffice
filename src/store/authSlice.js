@@ -1,19 +1,47 @@
 // src/store/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { apiPost, apiPut } from '../api/api';
+import { adminPath, apiPost } from '../api/api';
 
 const storedUser = localStorage.getItem('user');
+
+/** Perfiles válidos para el backoffice (alineados con auth-ms `LIST_PROFILES`). USER es solo app móvil. */
+const BACKOFFICE_PROFILES = new Set([
+  'ADMIN',
+  'SUPER_ADMIN',
+  'MANAGER_LEAGUE',
+  'MANAGER_TEAM',
+  'PLAYER',
+  'ASISTANT_TEAM',
+  'ASISTANT_LEAGUE',
+  'COACH',
+  'MANAGER_NATIONAL_TEAM',
+  'ASISTANT_NATIONAL_TEAM',
+]);
+
+const isBackofficeUser = (user) => {
+  const profileName = user?.profile?.name;
+  return typeof profileName === 'string' && BACKOFFICE_PROFILES.has(profileName);
+};
 
 // ✅ Thunk para login
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
   async ({ email, password }, thunkAPI) => {
     try {
-      await new Promise((res) => setTimeout(res, 1000)); // Simula delay
-      const response = await apiPost('/login', { email, password });
+      const response = await apiPost('/auth/login', { email, password });
+      if (!isBackofficeUser(response)) {
+        return thunkAPI.rejectWithValue(
+          'Acceso restringido: tu perfil no tiene permisos para el panel.',
+        );
+      }
       localStorage.setItem('user', JSON.stringify(response)); // guardamos inmediatamente
       return response;
     } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      if (backendMessage) {
+        if (Array.isArray(backendMessage)) return thunkAPI.rejectWithValue(backendMessage.join(', '));
+        if (typeof backendMessage === 'string') return thunkAPI.rejectWithValue(backendMessage);
+      }
       return thunkAPI.rejectWithValue('Error al iniciar sesión');
     }
   }
@@ -24,7 +52,10 @@ export const updatePassword = createAsyncThunk(
   'auth/updatePassword',
   async ({ userId, newPassword }, thunkAPI) => {
     try {
-      await apiPut(`/update-password`, { newPassword, userId });
+      await apiPost(adminPath('/auth/update-password'), {
+        newPassword,
+        userId,
+      });
 
       // Actualizar el usuario en localStorage y estado para que requiredChangePassword sea false
       const currentUser = JSON.parse(localStorage.getItem('user'));
@@ -50,7 +81,20 @@ export const updatePassword = createAsyncThunk(
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: storedUser ? JSON.parse(storedUser) : null,
+    user: (() => {
+      if (!storedUser) return null;
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (!isBackofficeUser(parsed)) {
+          localStorage.removeItem('user');
+          return null;
+        }
+        return parsed;
+      } catch {
+        localStorage.removeItem('user');
+        return null;
+      }
+    })(),
     loading: false,
     error: null,
     success: false,

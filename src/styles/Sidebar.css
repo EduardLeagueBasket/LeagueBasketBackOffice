@@ -5,7 +5,12 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  min-height: 100vh;
+  
+  /* CAMBIO 1: Cambiar min-height por height y overflow hidden */
+  height: 100vh; 
+  max-height: 100vh;
+  overflow: hidden; 
+
   width: 250px;
   position: fixed;
   left: 0;
@@ -50,6 +55,8 @@
   justify-content: space-between;
   background-color: rgba(44, 62, 80, 0.3);
   backdrop-filter: blur(10px);
+  /* CAMBIO 2: Evita que el header se encoja */
+  flex-shrink: 0; 
 }
 
 .sidebar-brand {
@@ -69,7 +76,21 @@
 .sidebar-nav {
   flex: 1;
   padding: 1rem 0;
-  overflow-y: auto;
+  /* CAMBIO 3: Asegura que el scroll se active solo aquí dentro */
+  overflow-y: auto; 
+  min-height: 0; /* Previene un bug común de Flexbox en Firefox/Chrome */
+}
+
+/* Opcional: Personalización de la barra de scroll para que se vea moderna */
+.sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .nav-item {
@@ -120,6 +141,8 @@
   border-top: 1px solid rgba(52, 73, 94, 0.5);
   background-color: rgba(44, 62, 80, 0.3);
   backdrop-filter: blur(10px);
+  /* CAMBIO 4: Garantiza que el footer permanezca visible y fijo abajo */
+  flex-shrink: 0; 
 }
 
 .sidebar-footer button {

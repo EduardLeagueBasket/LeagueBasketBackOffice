@@ -9,17 +9,16 @@ const UploadNationalTeamLogoModal = ({ show, onClose, onUploaded, referenceId, r
   const fileInputRef = useRef();
 
   useEffect(() => {
-    console.log('Executing onClose and reloadData');
-    if (processComplete) {
-      onClose();
-      reloadData();
-    }
-  }, [processComplete])
+    if (!show || !processComplete || !url) return;
+    onUploaded(url);
+    dispatch(clearUpload());
+    reloadData();
+    onClose();
+  }, [show, processComplete, url, onUploaded, onClose, reloadData, dispatch]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    console.log('Dispatching uploadLogo with referenceId:', referenceId);
     dispatch(uploadLogo({ file, folder, referenceId, type }));
   };
 

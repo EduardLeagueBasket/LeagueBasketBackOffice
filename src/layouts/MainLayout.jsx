@@ -17,22 +17,34 @@ const MainLayout = ({ onLogout }) => {
     const titles = {
       '/': 'Dashboard',
       '/users': 'Usuarios',
-      '/league': 'Ligas',
       '/analytics': 'Analíticas',
       '/teams': 'Equipos',
-      '/league/manager': 'Gestionar mi liga',
-      '/players': 'Jugadores',
-      '/players/add': 'Agregar Jugador',
-      '/players/type/league': 'Jugadores de Liga',
-      '/players/type/national': 'Jugadores Nacionales',
+      '/teams/add': 'Crear equipo',
+      '/teams/manager': 'Mi equipo',
       '/nationals-teams': 'Selecciones Nacionales',
       '/nationals-teams/add': 'Agregar Equipo Nacional',
       '/nationals-teams/edit': 'Editar Equipo Nacional',
       '/national-games': 'Juegos Nacionales',
       '/national-games/add': 'Agregar Juego Nacional',
       '/national-games/edit': 'Editar Juego Nacional',
+      '/league-games': 'Juegos de Liga',
+      '/league-games/bulk': 'Carga masiva liga',
+      '/league-games/manager': 'Mis partidos',
+      '/stories': 'Stories',
+      '/stories/add': 'Nueva story',
+      '/publishers': 'Publishers',
+      '/tickets/venues': 'Canchas',
+      '/tickets/sections': 'Secciones',
+      '/tickets/events': 'Eventos boletos',
+      '/tickets/promotions': 'Promociones',
+      '/tickets/list': 'Boletos',
+      '/tickets/orders': 'Órdenes boletos',
+      '/tickets/raffles': 'Sorteos',
+      '/tickets/points': 'Puntos',
     };
-    return titles[path] || 'Dashboard';
+    if (titles[path]) return titles[path];
+    if (path.startsWith('/tickets/')) return 'Boletos';
+    return 'Dashboard';
   };
 
   return (

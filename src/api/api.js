@@ -23,20 +23,36 @@ axiosInstance.interceptors.request.use((config) => {
     }
   }
 
+  // FormData necesita que el runtime ponga el boundary; no forzar Content-Type.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const headers = config.headers;
+    if (headers && typeof headers.set === 'function') {
+      // false = eliminar header en AxiosHeaders
+      headers.set('Content-Type', false);
+    } else if (headers) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
+  }
+
   return config;
 }, (error) => {
   return Promise.reject(error);
 });
+
+/** Rutas del panel admin en el gateway: `/api/admin/...` (JWT + rol backoffice). */
+export const adminPath = (path) => {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `/admin${p}`;
+};
+
 // Funciones generales
 
 export const apiGet = async (url, params = {}, headers = {}) => {
-  console.log('apiGet called with:', { url, params, headers });
-  console.log('Full URL:', `${BASE_URL}${url}`);
   const response = await axiosInstance.get(url, {
     params,
     headers
   });
-  console.log('apiGet response:', response.data);
   return response.data;
 };
 
@@ -45,8 +61,23 @@ export const apiPost = async (url, data, config = {}) => {
   return response.data;
 };
 
+export const apiPostFormData = async (url, formData, config = {}) => {
+  const response = await axiosInstance.post(url, formData, config);
+  return response.data;
+};
+
 export const apiPut = async (url, data, headers = {}) => {
   const response = await axiosInstance.put(url, data, { headers });
+  return response.data;
+};
+
+export const apiPatch = async (url, data, headers = {}) => {
+  const response = await axiosInstance.patch(url, data, { headers });
+  return response.data;
+};
+
+export const apiPatchFormData = async (url, formData, config = {}) => {
+  const response = await axiosInstance.patch(url, formData, config);
   return response.data;
 };
 

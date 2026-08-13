@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { apiPost } from '../../api/api';
+import { adminPath, apiPostFormData } from '../../api/api';
 
 export const uploadLogo = createAsyncThunk(
   'logo/uploadLogo',
@@ -10,15 +10,19 @@ export const uploadLogo = createAsyncThunk(
       formData.append('referenceId', referenceId);
       formData.append('type', type);
 
-      const response = await apiPost(`/upload/image?folder=${folder}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          thunkAPI.dispatch(setProgress(progress));
+      const response = await apiPostFormData(
+        `${adminPath('/upload/image')}?folder=${encodeURIComponent(folder)}`,
+        formData,
+        {
+          onUploadProgress: (progressEvent) => {
+            const total = progressEvent.total || 1;
+            const progress = Math.round((progressEvent.loaded * 100) / total);
+            thunkAPI.dispatch(setProgress(progress));
+          },
         },
-      });
+      );
 
-      return response.data;
+      return response;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || error.message);
     }
@@ -54,7 +58,6 @@ const uploadLogoSlice = createSlice({
         state.processComplete = false;
       })
       .addCase(uploadLogo.fulfilled, (state, action) => {
-        console.log('uploadLogo.fulfilled - setting processComplete to true');
         state.processComplete = true;
         state.loading = false;
         state.url = action.payload?.url;

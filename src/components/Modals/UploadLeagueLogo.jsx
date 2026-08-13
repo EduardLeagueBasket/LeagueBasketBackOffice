@@ -9,12 +9,11 @@ const UploadLeagueLogoModal = ({ show, onClose, onUploaded, referenceId, reloadD
   const fileInputRef = useRef();
 
   useEffect(() => {
-    console.log('Executing onClose and reloadData');
     if (processComplete) {
       onClose();
       reloadData();
     }
-  }, [processComplete])
+  }, [processComplete, onClose, reloadData])
 
 
   const handleFileChange = (e) => {

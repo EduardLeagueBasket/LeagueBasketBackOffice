@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { apiGet } from '../api/api';
+import { adminPath, apiPost } from '../api/api';
 
 export const usersSlice = createSlice({
   name: 'users',
@@ -45,7 +45,17 @@ export const usersSlice = createSlice({
 export const getUsers = createAsyncThunk('users/getUsers',
   async (params = {}, thunkAPI) => {
     try {
-      const response = await apiGet('/users', params);
+      const body = {
+        page: params.page ?? 1,
+        limit: params.limit ?? 10,
+        sortField: params.sortField ?? 'id',
+        sortDirection: params.sortDirection ?? 'asc',
+        ...(params.search != null && String(params.search).trim() !== '' && {
+          search: String(params.search).trim(),
+        }),
+        ...(params.typeUser && { typeUser: params.typeUser }),
+      };
+      const response = await apiPost(adminPath('/users/list'), body);
       return response;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || error.message);

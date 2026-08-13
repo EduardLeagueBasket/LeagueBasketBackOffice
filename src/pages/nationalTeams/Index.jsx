@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { ClipLoader } from "react-spinners";
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getNationalTeams } from '../../store/nationalTeams/getNationalTeamsSlice';
-import GenericTable from '../../components/Table/GenericTable';
+import GenericTable from '../../components/Table.jsx/GenericTable';
+import Swal from 'sweetalert2';
+import { deactivateNationalTeam } from '../../store/nationalTeams/updateNationalTeamSlice';
 
 export default function NationalTeams() {
   const dispatch = useDispatch();
@@ -20,8 +22,26 @@ export default function NationalTeams() {
   };
 
   const handleDelete = (item) => {
-    // TODO: Implementar eliminación
-    console.log('Eliminar equipo nacional:', item);
+    Swal.fire({
+      icon: 'warning',
+      title: 'Desactivar selección',
+      text: `¿Seguro que deseas desactivar "${item.name}"?`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, desactivar',
+      cancelButtonText: 'Cancelar',
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        await dispatch(deactivateNationalTeam(item.id)).unwrap();
+        dispatch(getNationalTeams());
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: typeof err === 'string' ? err : 'No se pudo desactivar.',
+        });
+      }
+    });
   };
 
   const columns = [
@@ -30,9 +50,9 @@ export default function NationalTeams() {
       header: 'Logo',
       cell: (item) => (
         <div className="text-center">
-          {item.logoUrl ? (
+          {item.logo ? (
             <img
-              src={item.logoUrl}
+              src={item.logo}
               alt={`Logo ${item.name}`}
               className="rounded-circle"
               style={{ width: '40px', height: '40px', objectFit: 'cover' }}
@@ -54,9 +74,31 @@ export default function NationalTeams() {
       accessor: 'name'
     },
     {
-      key: 'country',
-      header: 'País',
-      accessor: 'country'
+      key: 'countryCode',
+      header: 'Código',
+      accessor: 'countryCode'
+    },
+    {
+      key: 'gender',
+      header: 'Género',
+      accessor: 'gender'
+    },
+    {
+      key: 'category',
+      header: 'Categoría',
+      accessor: 'category'
+    },
+    {
+      key: 'competition',
+      header: 'Competencia',
+      accessor: 'competition.name',
+      cell: (item) => item?.competition?.name ?? '--'
+    },
+    {
+      key: 'isActive',
+      header: 'Activo',
+      accessor: 'isActive',
+      cell: (item) => (item.isActive ? 'Sí' : 'No')
     },
     {
       key: 'createdAt',

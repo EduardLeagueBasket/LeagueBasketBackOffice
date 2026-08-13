@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { apiPut } from '../api/api';
+import { adminPath, apiPatch } from '../api/api';
 
 export const userUpdateSlice = createSlice({
   name: 'userUpdate',
@@ -33,7 +33,7 @@ export const userUpdateSlice = createSlice({
 export const userUpdate = createAsyncThunk('userUpdate', async (data, thunkAPI) => {
   try {
     const { id, ...rest } = data;
-    const response = await apiPut(`/users/${id}`, rest);
+    const response = await apiPatch(adminPath(`/users/${id}`), rest);
     return response;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data || error.message);

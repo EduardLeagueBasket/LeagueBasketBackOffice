@@ -1,10 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { apiGet } from '../api/api';
+import { adminPath, apiGet } from '../api/api';
 
 export const getUserDetail = createAsyncThunk(
   'userDetail', async (id, thunkAPI) => {
     try {
-      const response = await apiGet(`/users/${id}`);
+      const response = await apiGet(adminPath(`/users/${id}`));
       return response;
     } catch (error) {
       return thunkAPI.rejectWithValue('Error al obtener el usuario');
@@ -35,3 +35,5 @@ const userDetailSlice = createSlice({
       })
   }
 });
+
+export default userDetailSlice.reducer;

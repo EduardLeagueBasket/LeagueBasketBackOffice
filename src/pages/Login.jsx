@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, Eye, EyeOff } from 'lucide-react';
 import '../styles/Login.css';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser } from '../store/authSlice';
+import { clearAuthState, loginUser } from '../store/authSlice';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
 
   const dispatch = useDispatch();
-  const { user, loading, error } = useSelector((state) => state.auth);
+  const { loading, error } = useSelector((state) => state.auth);
 
-  const handleLogin = async () => {
+  useEffect(() => {
+    if (error) dispatch(clearAuthState());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loginData.email, loginData.password]);
+
+  const handleLogin = async (e) => {
+    e?.preventDefault?.();
     await dispatch(loginUser(loginData));
   };
 
@@ -30,54 +36,58 @@ const Login = () => {
                   <p className="text-muted">Inicia sesión en tu dashboard</p>
                 </div>
 
-                <div className="mb-4">
-                  <label className="form-label fw-medium text-dark">Email</label>
-                  <input
-                    type="email"
-                    className="form-control form-control-custom"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    placeholder="tu@email.com"
-                    required
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="form-label fw-medium text-dark">Contraseña</label>
-                  <div className="position-relative">
+                <form onSubmit={handleLogin}>
+                  <div className="mb-4">
+                    <label className="form-label fw-medium text-dark">Email</label>
                     <input
-                      type={showPassword ? "text" : "password"}
+                      type="email"
                       className="form-control form-control-custom"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      placeholder="••••••••"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      placeholder="tu@email.com"
                       required
+                      autoComplete="email"
+                      disabled={loading}
                     />
-                    <button
-                      type="button"
-                      className="password-toggle"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
                   </div>
-                </div>
 
-                <button
-                  onClick={() => {
-                    //onLogin(loginData);
-                    handleLogin();
-                  }}
-                  className="btn btn-primary btn-login w-100 text-white mb-4"
-                  disabled={loading}
-                >
-                  {loading ? 'Cargando...' : 'Iniciar Sesión'}
-                </button>
-                {error && <div className="text-danger text-center">{error}</div>}
+                  <div className="mb-4">
+                    <label className="form-label fw-medium text-dark">Contraseña</label>
+                    <div className="position-relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        className="form-control form-control-custom"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                        placeholder="••••••••"
+                        required
+                        autoComplete="current-password"
+                        disabled={loading}
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={loading}
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-login w-100 text-white mb-4"
+                    disabled={loading || !loginData.email || !loginData.password}
+                  >
+                    {loading ? 'Cargando...' : 'Iniciar Sesión'}
+                  </button>
+                  {error && <div className="text-danger text-center">{error}</div>}
+                </form>
 
                 <div className="text-center">
                   <small className="text-muted">
-                    Demo: Usa cualquier email y contraseña
+                    Ingresa con tu cuenta del panel.
                   </small>
                 </div>
               </div>

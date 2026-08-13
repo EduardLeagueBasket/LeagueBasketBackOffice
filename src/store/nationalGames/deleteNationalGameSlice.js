@@ -1,14 +1,16 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { apiDelete } from "../../api/api";
+import { NATIONAL_MATCHES_API_PATH } from "../../utils/nationalMatchApi";
+import { axiosErrorToMessage } from "../../utils/apiErrorMessage";
 
 export const deleteNationalGame = createAsyncThunk(
   'nationalGames/delete',
   async (id, thunkAPI) => {
     try {
-      const response = await apiDelete(`/national-games/${id}`);
+      const response = await apiDelete(`${NATIONAL_MATCHES_API_PATH}/${id}`);
       return response;
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+      return thunkAPI.rejectWithValue(axiosErrorToMessage(error));
     }
   }
 );

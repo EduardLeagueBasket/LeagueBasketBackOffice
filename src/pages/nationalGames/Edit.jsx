@@ -7,6 +7,8 @@ import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getNationalTeams } from '../../store/nationalTeams/getNationalTeamsSlice';
 import { getNationalGameById, updateNationalGame, resetUpdateNationalGameState } from '../../store/nationalGames/updateNationalGameSlice';
 import { nationalGameTypes } from '../../utils/gameTypes';
+import { nationalMatchStatuses } from '../../utils/matchStatusLabels';
+import { formatErrorForDisplay } from '../../utils/apiErrorMessage';
 
 export default function EditNationalGame() {
   const dispatch = useDispatch();
@@ -23,6 +25,9 @@ export default function EditNationalGame() {
     gameTime: '',
     location: '',
     gameType: '',
+    status: 'scheduled',
+    homeScore: '',
+    awayScore: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -37,17 +42,26 @@ export default function EditNationalGame() {
 
   useEffect(() => {
     if (nationalGame) {
-      const gameDate = new Date(nationalGame.gameDate);
+      const rawDate = nationalGame.gameDate || nationalGame.matchDate;
+      const gameDate = new Date(rawDate);
       setFormData({
         nationalTeamId: nationalGame.nationalTeamId || '',
         opponentName: nationalGame.opponentName || '',
         gameDate: gameDate.toISOString().split('T')[0],
         gameTime: gameDate.toTimeString().slice(0, 5),
-        location: nationalGame.location || '',
-        gameType: nationalGame.gameType || '',
+        location: nationalGame.location || nationalGame.venue || '',
+        gameType:
+          nationalGame.competitionName || nationalGame.gameType || '',
+        status: nationalGame.status || 'scheduled',
+        homeScore:
+          nationalGame.homeScore != null ? String(nationalGame.homeScore) : '',
+        awayScore:
+          nationalGame.awayScore != null ? String(nationalGame.awayScore) : '',
       });
     }
   }, [nationalGame]);
+
+  const isCancelled = nationalGame?.status === 'cancelled';
 
   useEffect(() => {
     if (success) {
@@ -87,6 +101,17 @@ export default function EditNationalGame() {
       newErrors.gameType = 'Debe seleccionar el tipo de juego';
     }
 
+    if (formData.status === 'finished') {
+      const home = formData.homeScore === '' ? NaN : Number(formData.homeScore);
+      const away = formData.awayScore === '' ? NaN : Number(formData.awayScore);
+      if (!Number.isInteger(home) || home < 0) {
+        newErrors.homeScore = 'Marcador local requerido (entero ≥ 0)';
+      }
+      if (!Number.isInteger(away) || away < 0) {
+        newErrors.awayScore = 'Marcador visitante requerido (entero ≥ 0)';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -124,17 +149,26 @@ export default function EditNationalGame() {
 
     try {
       // Combinar fecha y hora
-      const gameDateTime = new Date(formData.gameDate + 'T' + (formData.gameTime || '00:00'));
+      const gameDateTime = new Date(
+        `${formData.gameDate}T${formData.gameTime || '00:00'}`,
+      );
 
       const payload = {
         nationalTeamId: formData.nationalTeamId,
         opponentName: formData.opponentName.trim(),
-        gameDate: gameDateTime.toISOString(),
-        location: formData.location.trim(),
-        gameType: formData.gameType,
+        matchDateIso: gameDateTime.toISOString(),
+        venue: formData.location.trim(),
+        competitionName: formData.gameType,
+        status: formData.status,
       };
 
-      console.log('Payload a enviar:', payload);
+      if (formData.status === 'finished') {
+        payload.homeScore = Number(formData.homeScore);
+        payload.awayScore = Number(formData.awayScore);
+      } else if (formData.status !== 'finished') {
+        payload.homeScore = null;
+        payload.awayScore = null;
+      }
 
       await dispatch(updateNationalGame({ id, data: payload })).unwrap();
 
@@ -175,7 +209,8 @@ export default function EditNationalGame() {
           <div className="card-body text-center">
             <div className="alert alert-danger">
               <i className="bi bi-exclamation-triangle me-2"></i>
-              Error al cargar el juego nacional: {error}
+              Error al cargar el juego nacional:{' '}
+              {formatErrorForDisplay(error)}
             </div>
             <ButtonNavigation url="/national-games" icon="bi bi-arrow-left" text="Volver" />
           </div>
@@ -192,6 +227,11 @@ export default function EditNationalGame() {
           <ButtonNavigation url="/national-games" icon="bi bi-arrow-left" text="Volver" />
         </div>
         <div className="card-body">
+          {isCancelled && (
+            <div className="alert alert-secondary">
+              Este partido está cancelado. Los datos son de solo lectura.
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="row">
               <div className="col-md-6 mb-3">
@@ -201,12 +241,12 @@ export default function EditNationalGame() {
                   name="nationalTeamId"
                   value={formData.nationalTeamId}
                   onChange={handleChange}
-                  disabled={teamsLoading || isSubmitting}
+                  disabled={teamsLoading || isSubmitting || isCancelled}
                 >
                   <option value="">Selecciona un equipo nacional</option>
-                  {nationalTeams.map(team => (
+                  {nationalTeams.map((team) => (
                     <option key={team.id} value={team.id}>
-                      {team.name} ({team.country})
+                      {team.name} ({team.countryCode || team.country || '—'})
                     </option>
                   ))}
                 </select>
@@ -231,7 +271,7 @@ export default function EditNationalGame() {
                   value={formData.opponentName}
                   onChange={handleChange}
                   placeholder="Ej: Estados Unidos"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isCancelled}
                 />
                 {errors.opponentName && (
                   <div className="invalid-feedback">
@@ -250,7 +290,7 @@ export default function EditNationalGame() {
                   name="gameDate"
                   value={formData.gameDate}
                   onChange={handleChange}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isCancelled}
                 />
                 {errors.gameDate && (
                   <div className="invalid-feedback">
@@ -267,10 +307,29 @@ export default function EditNationalGame() {
                   name="gameTime"
                   value={formData.gameTime}
                   onChange={handleChange}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isCancelled}
                 />
               </div>
 
+              <div className="col-md-4 mb-3">
+                <label className="form-label">Estado del partido</label>
+                <select
+                  className="form-select"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  disabled={isSubmitting || isCancelled}
+                >
+                  {nationalMatchStatuses.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="row">
               <div className="col-md-4 mb-3">
                 <label className="form-label">Tipo de Juego *</label>
                 <select
@@ -278,7 +337,7 @@ export default function EditNationalGame() {
                   name="gameType"
                   value={formData.gameType}
                   onChange={handleChange}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isCancelled}
                 >
                   <option value="">Selecciona el tipo de juego</option>
                   {nationalGameTypes.map(type => (
@@ -304,7 +363,7 @@ export default function EditNationalGame() {
                 value={formData.location}
                 onChange={handleChange}
                 placeholder="Ej: Madrid, España"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCancelled}
               />
               {errors.location && (
                 <div className="invalid-feedback">
@@ -312,6 +371,41 @@ export default function EditNationalGame() {
                 </div>
               )}
             </div>
+
+            {formData.status === 'finished' && !isCancelled && (
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <label className="form-label">Marcador local *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={`form-control ${errors.homeScore ? 'is-invalid' : ''}`}
+                    name="homeScore"
+                    value={formData.homeScore}
+                    onChange={handleChange}
+                    disabled={isSubmitting}
+                  />
+                  {errors.homeScore && (
+                    <div className="invalid-feedback">{errors.homeScore}</div>
+                  )}
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">Marcador visitante *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={`form-control ${errors.awayScore ? 'is-invalid' : ''}`}
+                    name="awayScore"
+                    value={formData.awayScore}
+                    onChange={handleChange}
+                    disabled={isSubmitting}
+                  />
+                  {errors.awayScore && (
+                    <div className="invalid-feedback">{errors.awayScore}</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="mb-3 d-flex justify-content-end gap-2">
               <button
@@ -325,7 +419,7 @@ export default function EditNationalGame() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSubmitting || teamsLoading}
+                disabled={isSubmitting || teamsLoading || isCancelled}
               >
                 {isSubmitting ? (
                   <>

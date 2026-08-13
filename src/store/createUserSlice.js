@@ -1,11 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { apiPost } from '../api/api';
+import { adminPath, apiPost } from '../api/api';
 
 export const createUser = createAsyncThunk(
   'createUser',
   async (user, thunkAPI) => {
     try {
-      const response = await apiPost('/create-user', user);
+      const response = await apiPost(adminPath('/users'), user);
       return response;
     } catch (error) {
       const errorMessage =
@@ -33,3 +33,6 @@ const createUserSlice = createSlice({
     });
   },
 });
+
+export const { resetUser } = createUserSlice.actions;
+export default createUserSlice.reducer;

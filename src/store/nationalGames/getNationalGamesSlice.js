@@ -1,14 +1,19 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { apiGet } from "../../api/api";
+import {
+  NATIONAL_MATCHES_API_PATH,
+  normalizeNationalMatchesList,
+} from "../../utils/nationalMatchApi";
+import { axiosErrorToMessage } from "../../utils/apiErrorMessage";
 
 export const getNationalGames = createAsyncThunk(
   'nationalGames/getAll',
   async (params = {}, thunkAPI) => {
     try {
-      const response = await apiGet('/national-games', params);
-      return response;
+      const response = await apiGet(NATIONAL_MATCHES_API_PATH, params);
+      return normalizeNationalMatchesList(response);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+      return thunkAPI.rejectWithValue(axiosErrorToMessage(error));
     }
   }
 );

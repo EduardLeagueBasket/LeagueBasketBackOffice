@@ -43,12 +43,6 @@ export default function AddNationalGame() {
 
     if (!formData.gameDate) {
       newErrors.gameDate = 'La fecha del juego es requerida';
-    } else {
-      const selectedDate = new Date(formData.gameDate + 'T' + (formData.gameTime || '00:00'));
-      const now = new Date();
-      if (selectedDate < now) {
-        newErrors.gameDate = 'La fecha del juego no puede ser en el pasado';
-      }
     }
 
     if (!formData.location.trim()) {
@@ -96,19 +90,20 @@ export default function AddNationalGame() {
 
     try {
       // Combinar fecha y hora
-      const gameDateTime = new Date(formData.gameDate + 'T' + (formData.gameTime || '00:00'));
+      const gameDateTime = new Date(
+        `${formData.gameDate}T${formData.gameTime || '00:00'}`,
+      );
 
-      const payload = {
-        nationalTeamId: formData.nationalTeamId,
-        opponentName: formData.opponentName.trim(),
-        gameDate: gameDateTime.toISOString(),
-        location: formData.location.trim(),
-        gameType: formData.gameType,
-      };
-
-      console.log('Payload a enviar:', payload);
-
-      await dispatch(createNationalGame(payload)).unwrap();
+      await dispatch(
+        createNationalGame({
+          nationalTeamId: formData.nationalTeamId,
+          opponentName: formData.opponentName.trim(),
+          matchDateIso: gameDateTime.toISOString(),
+          venue: formData.location.trim(),
+          competitionName: formData.gameType,
+          status: 'scheduled',
+        }),
+      ).unwrap();
 
       Swal.fire({
         icon: 'success',
@@ -172,9 +167,9 @@ export default function AddNationalGame() {
                   disabled={teamsLoading || isSubmitting}
                 >
                   <option value="">Selecciona un equipo nacional</option>
-                  {nationalTeams.map(team => (
+                  {nationalTeams.map((team) => (
                     <option key={team.id} value={team.id}>
-                      {team.name} ({team.country})
+                      {team.name} ({team.countryCode || team.country || '—'})
                     </option>
                   ))}
                 </select>

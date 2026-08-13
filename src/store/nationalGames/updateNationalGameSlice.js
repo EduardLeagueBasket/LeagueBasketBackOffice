@@ -1,14 +1,24 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { apiPut, apiGet } from "../../api/api";
+import { apiPatch, apiGet } from "../../api/api";
+import {
+  NATIONAL_MATCHES_API_PATH,
+  buildUpdateNationalMatchBody,
+  normalizeNationalMatchFromApi,
+} from "../../utils/nationalMatchApi";
+import { axiosErrorToMessage } from "../../utils/apiErrorMessage";
 
 export const updateNationalGame = createAsyncThunk(
   'nationalGames/update',
   async ({ id, data }, thunkAPI) => {
     try {
-      const response = await apiPut(`/national-games/${id}`, data);
-      return response;
+      const body = buildUpdateNationalMatchBody(data);
+      const response = await apiPatch(
+        `${NATIONAL_MATCHES_API_PATH}/${id}`,
+        body,
+      );
+      return normalizeNationalMatchFromApi(response);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+      return thunkAPI.rejectWithValue(axiosErrorToMessage(error));
     }
   }
 );
@@ -17,10 +27,10 @@ export const getNationalGameById = createAsyncThunk(
   'nationalGames/getById',
   async (id, thunkAPI) => {
     try {
-      const response = await apiGet(`/national-games/${id}`);
-      return response;
+      const response = await apiGet(`${NATIONAL_MATCHES_API_PATH}/${id}`);
+      return normalizeNationalMatchFromApi(response);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+      return thunkAPI.rejectWithValue(axiosErrorToMessage(error));
     }
   }
 );

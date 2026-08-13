@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import { ClipLoader } from "react-spinners";
@@ -25,14 +25,7 @@ export default function Edit() {
   });
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    handleGetUser();
-    if (profiles.length === 0) {
-      handleGetProfiles();
-    }
-  }, []);
-
-  const handleGetUser = async () => {
+  const handleGetUser = useCallback(async () => {
     const response = await dispatch(getUserDetail(id));
 
     if (getUserDetail.fulfilled.match(response)) {
@@ -45,7 +38,7 @@ export default function Edit() {
         perfil: response.payload?.profile?.id
       });
     }
-  }
+  }, [dispatch, id]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -82,7 +75,7 @@ export default function Edit() {
     return title;
   }
 
-  const handleGetProfiles = async () => {
+  const handleGetProfiles = useCallback(async () => {
     const result = await dispatch(getProfiles());
 
     if (result.payload.length > 0) {
@@ -97,7 +90,14 @@ export default function Edit() {
 
       setProfiles(filteredProfiles);
     }
-  }
+  }, [dispatch]);
+
+  useEffect(() => {
+    handleGetUser();
+    if (profiles.length === 0) {
+      handleGetProfiles();
+    }
+  }, [handleGetProfiles, handleGetUser, profiles.length]);
 
   const validateForm = () => {
     const newErrors = {};
