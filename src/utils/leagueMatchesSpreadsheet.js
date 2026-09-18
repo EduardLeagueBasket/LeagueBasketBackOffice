@@ -11,24 +11,25 @@ export function normalizeHeader(value) {
 }
 
 const HEADER_ALIASES = {
-  id: ['id', 'team_id', 'equipo_id', 'id_equipo', 'home_id', 'teamid'],
-  teamName: [
-    'nombre',
-    'nombre_equipo',
-    'equipo',
-    'team',
-    'team_name',
-    'teamname',
-    'nombre_del_equipo',
+  homeId: [
+    'id_equipo_home',
+    'id_home',
+    'home_team_id',
+    'home_id',
+    'equipo_local_id',
+    'id_local',
+    'id_equipo_a',
+    'id_a',
   ],
-  rival: [
-    'rival',
-    'equipo_rival',
-    'visitante',
-    'local',
-    'away',
-    'opponent',
-    'contrincante',
+  awayId: [
+    'id_equipo_away',
+    'id_away',
+    'away_team_id',
+    'away_id',
+    'equipo_visitante_id',
+    'id_visitante',
+    'id_equipo_b',
+    'id_b',
   ],
   date: ['fecha', 'date', 'match_date', 'dia'],
   time: ['hora', 'time', 'match_time', 'horario'],
@@ -56,7 +57,6 @@ function cellToString(value) {
 function excelSerialToDate(serial) {
   const n = Number(serial);
   if (!Number.isFinite(n)) return null;
-  // Excel epoch (con bug 1900)
   const utc = Math.round((n - 25569) * 86400 * 1000);
   return new Date(utc);
 }
@@ -75,9 +75,7 @@ function parseDateValue(value) {
     return parseDateValue(dt);
   }
   const raw = String(value).trim();
-  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  // DD/MM/YYYY or DD-MM-YYYY
   const m = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/);
   if (m) {
     return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
@@ -93,7 +91,6 @@ function parseTimeValue(value) {
     return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
   }
   if (typeof value === 'number') {
-    // fracción de día
     if (value < 1) {
       const totalMinutes = Math.round(value * 24 * 60);
       const h = Math.floor(totalMinutes / 60) % 24;
@@ -110,27 +107,15 @@ function parseTimeValue(value) {
   return '';
 }
 
-function normalizeName(name) {
-  return String(name ?? '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 /**
- * Resuelve un equipo de la competición por id o nombre.
+ * Resuelve un equipo de la competición por id exacto.
  * @returns {{ id: string, name: string } | null}
  */
-export function resolveCompetitionTeam(teams, idOrName) {
-  const raw = cellToString(idOrName);
+export function resolveCompetitionTeamById(teams, teamId) {
+  const raw = cellToString(teamId);
   if (!raw) return null;
-  const byId = teams.find((t) => String(t.id) === raw);
-  if (byId) return { id: byId.id, name: byId.name };
-  const needle = normalizeName(raw);
-  const byName = teams.find((t) => normalizeName(t.name) === needle);
-  if (byName) return { id: byName.id, name: byName.name };
-  return null;
+  const found = teams.find((t) => String(t.id) === raw);
+  return found ? { id: found.id, name: found.name } : null;
 }
 
 /**
@@ -163,9 +148,8 @@ export function parseLeagueMatchesSpreadsheet(file) {
         const headerRow = matrix[0];
         const normalizedHeaders = headerRow.map(normalizeHeader);
         const cols = {
-          id: pickColumn(normalizedHeaders, HEADER_ALIASES.id),
-          teamName: pickColumn(normalizedHeaders, HEADER_ALIASES.teamName),
-          rival: pickColumn(normalizedHeaders, HEADER_ALIASES.rival),
+          homeId: pickColumn(normalizedHeaders, HEADER_ALIASES.homeId),
+          awayId: pickColumn(normalizedHeaders, HEADER_ALIASES.awayId),
           date: pickColumn(normalizedHeaders, HEADER_ALIASES.date),
           time: pickColumn(normalizedHeaders, HEADER_ALIASES.time),
           datetime: pickColumn(normalizedHeaders, HEADER_ALIASES.datetime),
@@ -174,20 +158,11 @@ export function parseLeagueMatchesSpreadsheet(file) {
           status: pickColumn(normalizedHeaders, HEADER_ALIASES.status),
         };
 
-        if (cols.rival < 0) {
+        if (cols.homeId < 0 || cols.awayId < 0) {
           resolve({
             rows: [],
             errors: [
-              'Falta la columna del rival (ej. rival, equipo_rival, visitante).',
-            ],
-          });
-          return;
-        }
-        if (cols.id < 0 && cols.teamName < 0) {
-          resolve({
-            rows: [],
-            errors: [
-              'Falta la columna del equipo (id o nombre_equipo / equipo).',
+              'Faltan columnas de equipos. Usa id_equipo_home e id_equipo_away (UUID de cada equipo).',
             ],
           });
           return;
@@ -209,7 +184,11 @@ export function parseLeagueMatchesSpreadsheet(file) {
           let matchTime =
             cols.time >= 0 ? parseTimeValue(line[cols.time]) : '';
 
-          if (cols.datetime >= 0 && line[cols.datetime] != null && line[cols.datetime] !== '') {
+          if (
+            cols.datetime >= 0 &&
+            line[cols.datetime] != null &&
+            line[cols.datetime] !== ''
+          ) {
             const dtVal = line[cols.datetime];
             if (!matchDate) matchDate = parseDateValue(dtVal);
             if (!matchTime) matchTime = parseTimeValue(dtVal);
@@ -217,9 +196,8 @@ export function parseLeagueMatchesSpreadsheet(file) {
 
           rows.push({
             excelRow: i + 1,
-            teamId: cols.id >= 0 ? cellToString(line[cols.id]) : '',
-            teamName: cols.teamName >= 0 ? cellToString(line[cols.teamName]) : '',
-            rival: cellToString(line[cols.rival]),
+            homeTeamId: cellToString(line[cols.homeId]),
+            awayTeamId: cellToString(line[cols.awayId]),
             matchDate,
             matchTime: matchTime || '19:00',
             venue: cols.venue >= 0 ? cellToString(line[cols.venue]) : '',
@@ -246,67 +224,52 @@ export function parseLeagueMatchesSpreadsheet(file) {
 
 /**
  * Mapea filas del Excel a partidos listos para el API.
- * @param {'home'|'away'} leftSideRole - qué es la columna de equipo (izquierda)
+ * Cada fila debe traer UUID de local y visitante.
  */
-export function mapSpreadsheetRowsToMatches(rawRows, competitionTeams, leftSideRole) {
+export function mapSpreadsheetRowsToMatches(rawRows, competitionTeams) {
   const mapped = [];
   const errors = [];
 
   rawRows.forEach((row) => {
-    const teamRef = row.teamId || row.teamName;
-    const leftTeam = resolveCompetitionTeam(competitionTeams, teamRef);
-    const rivalTeam = resolveCompetitionTeam(competitionTeams, row.rival);
-
     if (!row.matchDate) {
       errors.push(`Fila ${row.excelRow}: fecha inválida o vacía`);
       return;
     }
 
-    let homeTeamId = '';
-    let awayTeamId = '';
-    let awayTeamName = '';
-    let homeLabel = '';
-    let awayLabel = '';
+    const homeTeam = resolveCompetitionTeamById(
+      competitionTeams,
+      row.homeTeamId,
+    );
+    const awayTeam = resolveCompetitionTeamById(
+      competitionTeams,
+      row.awayTeamId,
+    );
 
-    if (leftSideRole === 'home') {
-      if (!leftTeam) {
-        errors.push(
-          `Fila ${row.excelRow}: no se encontró el equipo local "${teamRef}" en la competición`,
-        );
-        return;
-      }
-      homeTeamId = leftTeam.id;
-      homeLabel = leftTeam.name;
-      if (rivalTeam) {
-        awayTeamId = rivalTeam.id;
-        awayLabel = rivalTeam.name;
-      } else if (row.rival) {
-        awayTeamName = row.rival;
-        awayLabel = row.rival;
-      } else {
-        errors.push(`Fila ${row.excelRow}: falta el rival`);
-        return;
-      }
-    } else {
-      // izquierda = visitante → el rival debe ser el local registrado
-      if (!rivalTeam) {
-        errors.push(
-          `Fila ${row.excelRow}: el local (columna rival) "${row.rival}" no está en la competición`,
-        );
-        return;
-      }
-      homeTeamId = rivalTeam.id;
-      homeLabel = rivalTeam.name;
-      if (leftTeam) {
-        awayTeamId = leftTeam.id;
-        awayLabel = leftTeam.name;
-      } else if (teamRef) {
-        awayTeamName = row.teamName || row.teamId;
-        awayLabel = awayTeamName;
-      } else {
-        errors.push(`Fila ${row.excelRow}: falta el equipo visitante`);
-        return;
-      }
+    if (!row.homeTeamId) {
+      errors.push(`Fila ${row.excelRow}: falta id_equipo_home`);
+      return;
+    }
+    if (!row.awayTeamId) {
+      errors.push(`Fila ${row.excelRow}: falta id_equipo_away`);
+      return;
+    }
+    if (!homeTeam) {
+      errors.push(
+        `Fila ${row.excelRow}: id_equipo_home "${row.homeTeamId}" no pertenece a esta competición`,
+      );
+      return;
+    }
+    if (!awayTeam) {
+      errors.push(
+        `Fila ${row.excelRow}: id_equipo_away "${row.awayTeamId}" no pertenece a esta competición`,
+      );
+      return;
+    }
+    if (homeTeam.id === awayTeam.id) {
+      errors.push(
+        `Fila ${row.excelRow}: local y visitante no pueden ser el mismo equipo`,
+      );
+      return;
     }
 
     const time = row.matchTime || '19:00';
@@ -318,12 +281,10 @@ export function mapSpreadsheetRowsToMatches(rawRows, competitionTeams, leftSideR
 
     mapped.push({
       excelRow: row.excelRow,
-      homeTeamId,
-      awayTeamId: awayTeamId || undefined,
-      awayTeamName: awayTeamName || undefined,
-      homeLabel,
-      awayLabel,
-      teamNameHint: row.teamName || row.teamId,
+      homeTeamId: homeTeam.id,
+      awayTeamId: awayTeam.id,
+      homeLabel: homeTeam.name,
+      awayLabel: awayTeam.name,
       matchType: ['LEAGUE', 'FRIENDLY', 'TOURNAMENT', 'INTERNATIONAL'].includes(
         row.matchType,
       )
@@ -343,28 +304,46 @@ export function mapSpreadsheetRowsToMatches(rawRows, competitionTeams, leftSideR
   return { matches: mapped, errors };
 }
 
-/** Genera y descarga una plantilla Excel de ejemplo. */
-export function downloadLeagueMatchesTemplate() {
+/**
+ * Genera y descarga plantilla Excel.
+ * @param {Array<{ id: string, name: string }>} [teams] - si hay equipos, incluye hoja de referencia
+ */
+export function downloadLeagueMatchesTemplate(teams = []) {
   const sample = [
     {
-      id: 'pegar-uuid-del-equipo',
-      nombre_equipo: 'Titanes',
-      rival: 'Cafeteros',
+      id_equipo_home: teams[0]?.id || 'pegar-uuid-local',
+      id_equipo_away: teams[1]?.id || 'pegar-uuid-visitante',
       fecha: '2026-09-01',
       hora: '19:00',
       ubicacion: 'Coliseo El Pueblo',
     },
     {
-      id: '',
-      nombre_equipo: 'Cafeteros',
-      rival: 'Titanes',
+      id_equipo_home: teams[1]?.id || 'pegar-uuid-local',
+      id_equipo_away: teams[0]?.id || 'pegar-uuid-visitante',
       fecha: '2026-09-03',
       hora: '20:30',
       ubicacion: 'Arena Manizales',
     },
   ];
-  const sheet = XLSX.utils.json_to_sheet(sample);
+
   const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, sheet, 'Partidos');
+  XLSX.utils.book_append_sheet(
+    book,
+    XLSX.utils.json_to_sheet(sample),
+    'Partidos',
+  );
+
+  if (teams.length > 0) {
+    const ref = teams.map((t) => ({
+      nombre: t.name,
+      id: t.id,
+    }));
+    XLSX.utils.book_append_sheet(
+      book,
+      XLSX.utils.json_to_sheet(ref),
+      'Equipos',
+    );
+  }
+
   XLSX.writeFile(book, 'plantilla-carga-partidos.xlsx');
 }

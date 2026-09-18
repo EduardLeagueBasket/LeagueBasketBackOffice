@@ -6,6 +6,7 @@ import { ClipLoader } from 'react-spinners';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import { getCatalogCountries } from '../../store/catalogCountriesSlice';
 import { clearCompetitionsErrors, createCompetition } from '../../store/competitionsSlice';
+import { getUsers } from '../../store/usersSlice';
 
 const CompetitionAdd = () => {
   const dispatch = useDispatch();
@@ -13,6 +14,9 @@ const CompetitionAdd = () => {
 
   const { countries = [], loading: countriesLoading = false } = useSelector((state) => state.catalogCountries || {});
   const { creating = false, createError = null } = useSelector((state) => state.competitions || {});
+  const { users = [], loading: usersLoading = false } = useSelector((state) => state.users || {});
+
+  const managerUsers = users.filter((u) => u?.profile?.name === 'MANAGER_LEAGUE');
 
   const [formData, setFormData] = useState({
     countryId: '',
@@ -21,6 +25,7 @@ const CompetitionAdd = () => {
     gender: '',
     season: '',
     file: null,
+    managerUserId: '',
   });
 
   const templates = useMemo(() => ([
@@ -32,12 +37,13 @@ const CompetitionAdd = () => {
 
   useEffect(() => {
     dispatch(getCatalogCountries());
+    dispatch(getUsers({ page: 1, limit: 200 }));
   }, [dispatch]);
 
   useEffect(() => {
     if (createError) dispatch(clearCompetitionsErrors());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.countryId, formData.name, formData.type, formData.gender, formData.season]);
+  }, [formData.countryId, formData.name, formData.type, formData.gender, formData.season, formData.managerUserId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -67,6 +73,7 @@ const CompetitionAdd = () => {
         gender: formData.gender || null,
         season: formData.season.trim() || null,
         countryId: formData.countryId,
+        managerUserId: formData.managerUserId,
         file: formData.file,
       };
 
@@ -184,7 +191,7 @@ const CompetitionAdd = () => {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">Temporada</label>
+                <label className="form-label">Etiqueta (opcional)</label>
                 <input
                   type="text"
                   className="form-control"
@@ -192,9 +199,37 @@ const CompetitionAdd = () => {
                   value={formData.season}
                   onChange={handleChange}
                   disabled={creating}
-                  placeholder="Ej: 2026"
+                  placeholder="Ej: Liga profesional"
                 />
+                <small className="text-muted">
+                  Las ediciones 2025-2026, 2026-2027, etc. se gestionan en{' '}
+                  <strong>Temporadas</strong>, no aquí.
+                </small>
               </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Gerente de la liga *</label>
+              <select
+                className="form-select"
+                name="managerUserId"
+                value={formData.managerUserId}
+                onChange={handleChange}
+                required
+                disabled={creating || usersLoading}
+              >
+                <option value="">
+                  {usersLoading ? 'Cargando usuarios...' : 'Selecciona un gerente'}
+                </option>
+                {managerUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.lastName ?? ''} — {u.email}
+                  </option>
+                ))}
+              </select>
+              <small className="text-muted">
+                Este usuario será quien administre juegos, equipos e historias de esta liga.
+              </small>
             </div>
 
             <div className="mb-3">
@@ -218,7 +253,7 @@ const CompetitionAdd = () => {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={creating || !formData.countryId}
+                disabled={creating || !formData.countryId || !formData.managerUserId}
               >
                 {creating ? <ClipLoader color="#fff" size={18} /> : 'Crear Competencia'}
               </button>

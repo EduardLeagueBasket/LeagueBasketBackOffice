@@ -32,6 +32,9 @@ import seasonsReducer from './seasons/seasonsSlice';
 import leagueStandingsReducer from './leagueStandings/leagueStandingsSlice';
 import storiesReducer from './stories/storiesSlice';
 import publishersReducer from './publishers/publishersSlice';
+import articleCategoriesReducer from './articleCategories/articleCategoriesSlice';
+import articlesReducer from './articles/articlesSlice';
+import getMyNationalTeamReducer from './nationalTeams/getMyNationalTeamSlice';
 
 export const store = configureStore({
   reducer: {
@@ -76,5 +79,8 @@ export const store = configureStore({
     leagueStandings: leagueStandingsReducer,
     stories: storiesReducer,
     publishers: publishersReducer,
+    articleCategories: articleCategoriesReducer,
+    articles: articlesReducer,
+    myNationalTeam: getMyNationalTeamReducer,
   },
 });

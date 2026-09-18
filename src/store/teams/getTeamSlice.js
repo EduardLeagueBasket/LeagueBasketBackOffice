@@ -10,6 +10,15 @@ export const getTeamByManager = createAsyncThunk('teams/getTeamByManager', async
   }
 });
 
+export const getTeamById = createAsyncThunk('teams/getTeamById', async (teamId, thunkAPI) => {
+  try {
+    const response = await apiGet(adminPath(`/teams/${teamId}`));
+    return response;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data || error.message);
+  }
+});
+
 export const updateTeam = createAsyncThunk(
   'teams/updateTeam',
   async ({ teamId, formData }, thunkAPI) => {
@@ -46,6 +55,19 @@ export const getTeamSlice = createSlice({
         state.error = null;
       })
       .addCase(getTeamByManager.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(getTeamById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getTeamById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.team = action.payload;
+        state.error = null;
+      })
+      .addCase(getTeamById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

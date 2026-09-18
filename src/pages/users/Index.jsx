@@ -15,6 +15,7 @@ const Users = () => {
   const [pageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeUser] = useState(!isSuperAdmin ? 'manager-teams' : 'league-assistants');
+  console.log(currentUser);
 
   const handleGetUsers = useCallback(async () => {
     const params = {

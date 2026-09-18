@@ -53,12 +53,14 @@ export default function EditNationalTeam() {
   useEffect(() => {
     if (nationalTeam) {
       const countryCode = (nationalTeam.countryCode || '').toUpperCase();
-      const matchCountry = countries.find((c) => (c.countryCode || '').toUpperCase() === countryCode);
+      const matchCountry =
+        countries.find((c) => c.id === nationalTeam.countryId) ||
+        countries.find((c) => (c.countryCode || '').toUpperCase() === countryCode);
 
       setFormData({
         name: nationalTeam.name || '',
-        countryId: matchCountry?.id || '',
-        countryCode,
+        countryId: nationalTeam.countryId || matchCountry?.id || '',
+        countryCode: (matchCountry?.countryCode || countryCode).toUpperCase(),
         gender: nationalTeam.gender || 'male',
         category: nationalTeam.category || 'senior',
         competitionId: nationalTeam.competitionId || '',
@@ -165,6 +167,7 @@ export default function EditNationalTeam() {
       const payload = {
         name: formData.name.trim(),
         countryCode: formData.countryCode.trim().toUpperCase(),
+        countryId: formData.countryId || undefined,
         gender: formData.gender,
         category: formData.category,
         logo: formData.logo || undefined,

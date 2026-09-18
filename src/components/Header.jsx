@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Bell, Search, Menu } from 'lucide-react';
+import { User, Menu } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
 const Header = ({ setSidebarOpen, currentPage }) => {
@@ -19,7 +19,7 @@ const Header = ({ setSidebarOpen, currentPage }) => {
         </div>
 
         <div className="d-flex align-items-center">
-          <div className="position-relative me-3">
+          {/*<div className="position-relative me-3">
             <input
               type="text"
               className="form-control"
@@ -34,7 +34,7 @@ const Header = ({ setSidebarOpen, currentPage }) => {
             <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
               3
             </span>
-          </button>
+          </button>*/}
 
           <div className="d-flex align-items-center">
             <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '32px', height: '32px' }}>

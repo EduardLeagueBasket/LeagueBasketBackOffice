@@ -11,6 +11,17 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
   const handleLogout = () => {
     dispatch(logout());
   }
+
+  const isManagerNationalTeam = user?.profile?.name === 'MANAGER_NATIONAL_TEAM';
+  const isAssistantNationalTeam = user?.profile?.name === 'ASISTANT_NATIONAL_TEAM';
+  const isManagerLeague = user?.profile?.name === 'MANAGER_LEAGUE';
+  const isAssistantLeague = user?.profile?.name === 'ASISTANT_LEAGUE';
+  const isManagerTeam = user?.profile?.name === 'MANAGER_TEAM';
+  const isAssistantTeam = user?.profile?.name === 'ASISTANT_TEAM';
+  const isSuperAdmin = user?.profile?.name === 'SUPER_ADMIN';
+  const isAdmin = user?.profile?.name === 'ADMIN';
+
+
   return (
     <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header d-flex align-items-center justify-content-between">
@@ -54,10 +65,7 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
               </li>
             </>
           )}
-          {(user?.profile?.name === 'SUPER_ADMIN' ||
-            user?.profile?.name === 'ADMIN' ||
-            user?.profile?.name === 'MANAGER_LEAGUE' ||
-            user?.profile?.name === 'ASISTANT_LEAGUE') && (
+          {(isSuperAdmin || isAdmin || isManagerLeague || isAssistantLeague) && (
             <li className="nav-item">
               <NavLink to="/league-games" className="nav-link">
                 <i className="bi bi-calendar2-week me-2"></i>
@@ -65,20 +73,8 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
               </NavLink>
             </li>
           )}
-          {(user?.profile?.name === 'SUPER_ADMIN' || user?.profile?.name === 'ADMIN') && (
+          {(isSuperAdmin || isAdmin || isManagerLeague || isAssistantLeague) && (
             <>
-              <li className="nav-item">
-                <NavLink to="/nationals-teams" className="nav-link">
-                  <i className="bi bi-flag me-2"></i>
-                  {!isCollapsed && <span>Seleccion Nacional</span>}
-                </NavLink>
-              </li>
-              <li className="nav-item">
-                <NavLink to="/national-games" className="nav-link">
-                  <i className="bi bi-calendar-event me-2"></i>
-                  {!isCollapsed && <span>Juegos Nacionales</span>}
-                </NavLink>
-              </li>
               <li className="nav-item">
                 <NavLink to="/seasons" className="nav-link">
                   <i className="bi bi-calendar-range me-2"></i>
@@ -89,6 +85,25 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
                 <NavLink to="/league-standings" className="nav-link">
                   <i className="bi bi-bar-chart-steps me-2"></i>
                   {!isCollapsed && <span>Tabla de posiciones</span>}
+                </NavLink>
+              </li>
+            </>
+          )}
+          {
+            (isManagerNationalTeam || isAssistantNationalTeam) &&
+              <li className="nav-item">
+                <NavLink to="/national-games" className="nav-link">
+                  <i className="bi bi-calendar-event me-2"></i>
+                  {!isCollapsed && <span>Juegos Nacionales</span>}
+                </NavLink>
+              </li>
+          }
+          {(isSuperAdmin || isAdmin) && (
+            <>
+              <li className="nav-item">
+                <NavLink to="/nationals-teams" className="nav-link">
+                  <i className="bi bi-flag me-2"></i>
+                  {!isCollapsed && <span>Seleccion Nacional</span>}
                 </NavLink>
               </li>
               <li className="nav-item">
@@ -156,40 +171,55 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
               </li>
             </>
           )}
-          <li className="nav-item">
-            <NavLink to="/teams" className="nav-link">
-              <i className="bi bi-gear me-2"></i>
-              {!isCollapsed && <span>Equipos</span>}
-            </NavLink>
-          </li>
           {
-            (user?.profile?.name === 'SUPER_ADMIN' ||
-              user?.profile?.name === 'ADMIN' ||
-              user?.profile?.name === 'MANAGER_TEAM' ||
-              user?.profile?.name === 'ASISTANT_TEAM' ||
-              user?.profile?.name === 'MANAGER_NATIONAL_TEAM' ||
-              user?.profile?.name === 'ASISTANT_NATIONAL_TEAM') && (
-              <li className="nav-item">
-                <NavLink to="/stories" className="nav-link">
-                  <i className="bi bi-camera-reels me-2"></i>
-                  {!isCollapsed && <span>Stories</span>}
-                </NavLink>
-              </li>
+            (isSuperAdmin || isAdmin || isManagerLeague || isAssistantLeague) && (
+                <li className="nav-item">
+                  <NavLink to="/teams" className="nav-link">
+                    <i className="bi bi-gear me-2"></i>
+                    {!isCollapsed && <span>Equipos</span>}
+                  </NavLink>
+                </li>
+              )
+          }
+          {
+            (isSuperAdmin || isAdmin || isManagerTeam || isAssistantTeam || isManagerNationalTeam || isAssistantNationalTeam || isManagerLeague || isAssistantLeague) && (
+              <>
+                <li className="nav-item">
+                  <NavLink to="/stories" className="nav-link">
+                    <i className="bi bi-camera-reels me-2"></i>
+                    {!isCollapsed && <span>Stories</span>}
+                  </NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink to="/articles" className="nav-link">
+                    <i className="bi bi-newspaper me-2"></i>
+                    {!isCollapsed && <span>Artículos</span>}
+                  </NavLink>
+                </li>
+              </>
             )
           }
           {
             (user?.profile?.name === 'SUPER_ADMIN' ||
               user?.profile?.name === 'ADMIN') && (
-              <li className="nav-item">
-                <NavLink to="/publishers" className="nav-link">
-                  <i className="bi bi-broadcast me-2"></i>
-                  {!isCollapsed && <span>Publishers</span>}
-                </NavLink>
-              </li>
+              <>
+                <li className="nav-item">
+                  <NavLink to="/publishers" className="nav-link">
+                    <i className="bi bi-broadcast me-2"></i>
+                    {!isCollapsed && <span>Publishers</span>}
+                  </NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink to="/article-categories" className="nav-link">
+                    <i className="bi bi-tags me-2"></i>
+                    {!isCollapsed && <span>Categorías</span>}
+                  </NavLink>
+                </li>
+              </>
             )
           }
           {
-            user.profile.name === 'MANAGER_TEAM' && (
+            (isManagerTeam) && (
               <li className="nav-item">
                 <NavLink to="/league-games/manager" className="nav-link">
                   <i className="bi bi-calendar-plus me-2"></i>
@@ -199,7 +229,7 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
             )
           }
           {
-            user.profile.name === 'MANAGER_TEAM' && (
+            isManagerTeam && (
               <li className="nav-item">
                 <NavLink to="/teams/manager" className="nav-link">
                   <i className="bi bi-gear me-2"></i>
@@ -209,7 +239,7 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
             )
           }
           {
-            user.profile.name === 'MANAGER_NATIONAL_TEAM' && (
+            isManagerNationalTeam && (
               <li className="nav-item">
                 <NavLink to="/national-teams/manager" className="nav-link">
                   <i className="bi bi-gear me-2"></i>

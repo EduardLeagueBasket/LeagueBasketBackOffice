@@ -20,6 +20,7 @@ const MainLayout = ({ onLogout }) => {
       '/analytics': 'Analíticas',
       '/teams': 'Equipos',
       '/teams/add': 'Crear equipo',
+      '/teams/edit': 'Editar equipo',
       '/teams/manager': 'Mi equipo',
       '/nationals-teams': 'Selecciones Nacionales',
       '/nationals-teams/add': 'Agregar Equipo Nacional',
@@ -30,9 +31,14 @@ const MainLayout = ({ onLogout }) => {
       '/league-games': 'Juegos de Liga',
       '/league-games/bulk': 'Carga masiva liga',
       '/league-games/manager': 'Mis partidos',
+      '/seasons': 'Temporadas',
+      '/seasons/add': 'Nueva temporada',
       '/stories': 'Stories',
       '/stories/add': 'Nueva story',
       '/publishers': 'Publishers',
+      '/article-categories': 'Categorías de artículos',
+      '/articles': 'Artículos',
+      '/articles/add': 'Nuevo artículo',
       '/tickets/venues': 'Canchas',
       '/tickets/sections': 'Secciones',
       '/tickets/events': 'Eventos boletos',
@@ -43,6 +49,7 @@ const MainLayout = ({ onLogout }) => {
       '/tickets/points': 'Puntos',
     };
     if (titles[path]) return titles[path];
+    if (path.startsWith('/seasons/')) return 'Equipos de temporada';
     if (path.startsWith('/tickets/')) return 'Boletos';
     return 'Dashboard';
   };

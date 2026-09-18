@@ -9,6 +9,7 @@ import {
   updateLeagueGame,
 } from '../../store/leagueGames/leagueGamesSlice';
 import { leagueMatchStatuses, leagueMatchTypes } from '../../utils/leagueMatchApi';
+import { SEASON_STATUS_LABEL, seasonStatusOf } from '../../utils/seasonApi';
 
 const labelOf = (options, value) =>
   options.find((o) => o.value === value)?.label ?? value;
@@ -41,6 +42,12 @@ export default function LeagueGamesIndex() {
       dispatch(getTeams());
     }
   }, [dispatch, isAdmin]);
+
+  useEffect(() => {
+    if (!competitionId && competitions.length === 1) {
+      setCompetitionId(competitions[0].id);
+    }
+  }, [competitions, competitionId]);
 
   useEffect(() => {
     if (isAdmin && competitionId) {
@@ -142,6 +149,9 @@ export default function LeagueGamesIndex() {
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
+                    {SEASON_STATUS_LABEL[seasonStatusOf(s)]
+                      ? ` (${SEASON_STATUS_LABEL[seasonStatusOf(s)].toLowerCase()})`
+                      : ''}
                   </option>
                 ))}
               </select>

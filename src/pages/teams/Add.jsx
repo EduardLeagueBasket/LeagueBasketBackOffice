@@ -15,6 +15,13 @@ const AddTeam = () => {
   const { competitions = [], loading: competitionsLoading = false } = useSelector(
     (state) => state.competitions || {},
   );
+  const { user: currentUser } = useSelector((state) => state.auth);
+  const isLeagueStaff =
+    currentUser?.profile?.name === 'MANAGER_LEAGUE' ||
+    currentUser?.profile?.name === 'ASISTANT_LEAGUE';
+  const leagueOptions = isLeagueStaff
+    ? competitions
+    : competitions.filter((c) => c.isActive !== false && (!c.type || c.type === 'league'));
 
   const [userList, setUserList] = useState([]);
 
@@ -22,6 +29,8 @@ const AddTeam = () => {
     name: '',
     competitionId: '',
     managerUserId: '',
+    isActive: true,
+    sellsTickets: false,
   });
 
   /** Archivo local; la subida a Cloudinary ocurre solo al crear el equipo en el backend. */
@@ -38,9 +47,24 @@ const AddTeam = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    const nextUserList = users.filter((u) => u.profile?.name === 'MANAGER_TEAM');
+    if (formData.competitionId) return;
+    const options = isLeagueStaff
+      ? competitions
+      : competitions.filter((c) => c.isActive !== false && (!c.type || c.type === 'league'));
+    if (options.length === 1) {
+      setFormData((prev) => ({ ...prev, competitionId: options[0].id }));
+    }
+  }, [competitions, formData.competitionId, isLeagueStaff]);
+
+  useEffect(() => {
+    const nextUserList = users.filter((u) => {
+      if (u.profile?.name !== 'MANAGER_TEAM') return false;
+      if (!formData.competitionId) return true;
+      if (!u.competitionId) return true;
+      return u.competitionId === formData.competitionId;
+    });
     setUserList(nextUserList);
-  }, [users]);
+  }, [users, formData.competitionId]);
 
   useEffect(() => {
     return () => {
@@ -68,7 +92,7 @@ const AddTeam = () => {
     }
 
     if (!formData.competitionId) {
-      newErrors.competitionId = 'Debe seleccionar una competencia (catálogo)';
+      newErrors.competitionId = 'Debe seleccionar la liga del equipo';
     }
 
     if (!formData.managerUserId) {
@@ -80,11 +104,17 @@ const AddTeam = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+      };
+      if (name === 'competitionId') {
+        next.managerUserId = '';
+      }
+      return next;
+    });
 
     if (errors[name]) {
       setErrors((prev) => ({
@@ -126,6 +156,8 @@ const AddTeam = () => {
       fd.append('name', formData.name.trim());
       fd.append('competitionId', formData.competitionId);
       fd.append('managerUserId', formData.managerUserId);
+      fd.append('isActive', String(Boolean(formData.isActive)));
+      fd.append('sellsTickets', String(Boolean(formData.sellsTickets)));
       if (logoFile) {
         fd.append('file', logoFile);
       }
@@ -142,6 +174,8 @@ const AddTeam = () => {
           name: '',
           competitionId: '',
           managerUserId: '',
+          isActive: true,
+          sellsTickets: false,
         });
         setErrors({});
         setLogoFile(null);
@@ -155,7 +189,10 @@ const AddTeam = () => {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error creando equipo. Intenta nuevamente.',
+        text:
+          (typeof error === 'string' && error) ||
+          error?.message ||
+          'Error creando equipo. Intenta nuevamente.',
         confirmButtonText: 'Aceptar',
       });
     } finally {
@@ -189,16 +226,18 @@ const AddTeam = () => {
 
           <form id="team-form" onSubmit={handleSubmit}>
             <div className="mb-3">
-              <label className="form-label">Competencia (catálogo) *</label>
+              <label className="form-label">Liga *</label>
               <select
                 className={`form-select ${errors.competitionId ? 'is-invalid' : ''}`}
                 name="competitionId"
                 value={formData.competitionId}
                 onChange={handleChange}
-                disabled={competitionsLoading || isSubmitting}
+                disabled={competitionsLoading || isSubmitting || isLeagueStaff}
               >
-                <option value="">Selecciona una competencia</option>
-                {competitions.map((c) => (
+                <option value="">
+                  {competitionsLoading ? 'Cargando ligas...' : 'Selecciona la liga'}
+                </option>
+                {leagueOptions.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                     {c.season ? ` — ${c.season}` : ''}
@@ -208,9 +247,23 @@ const AddTeam = () => {
               {errors.competitionId && (
                 <div className="invalid-feedback">{errors.competitionId}</div>
               )}
+              {isLeagueStaff ? (
+                <small className="text-muted">
+                  El equipo se registrará en tu liga. Solo puedes asignar gerentes de esa misma liga.
+                </small>
+              ) : (
+                <small className="text-muted d-block">
+                  Elige la liga a la que pertenecerá este equipo. Luego solo verás gerentes de esa liga.
+                </small>
+              )}
+              {!competitionsLoading && !isLeagueStaff && leagueOptions.length === 0 && (
+                <small className="text-danger d-block">
+                  No hay ligas disponibles. Crea una competencia de tipo liga primero.
+                </small>
+              )}
               {competitionsLoading && (
                 <small className="text-muted">
-                  <ClipLoader color="#007bff" size={12} /> Cargando competencias…
+                  <ClipLoader color="#007bff" size={12} /> Cargando ligas…
                 </small>
               )}
             </div>
@@ -270,6 +323,42 @@ const AddTeam = () => {
                   <ClipLoader color="#007bff" size={12} /> Cargando gerentes…
                 </small>
               )}
+            </div>
+
+            <div className="mb-3">
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="teamActiveSwitch"
+                  name="isActive"
+                  checked={formData.isActive}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                />
+                <label className="form-check-label" htmlFor="teamActiveSwitch">
+                  Equipo activo
+                </label>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="teamSellsTicketsSwitch"
+                  name="sellsTickets"
+                  checked={formData.sellsTickets}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                />
+                <label className="form-check-label" htmlFor="teamSellsTicketsSwitch">
+                  Vende boletos
+                </label>
+              </div>
             </div>
 
             <div className="mb-3 d-flex justify-content-end gap-2">

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { getCompetitions } from '../../store/competitionsSlice';
 import { createSeason } from '../../store/seasons/seasonsSlice';
+import { SEASON_STATUS, SEASON_STATUS_LABEL } from '../../utils/seasonApi';
 
 export default function SeasonAdd() {
   const dispatch = useDispatch();
@@ -10,38 +11,59 @@ export default function SeasonAdd() {
   const { competitions = [] } = useSelector((s) => s.competitions || {});
   const { saving, error } = useSelector((s) => s.seasons);
   const user = useSelector((s) => s.auth.user);
-  const isAdmin =
-    user?.profile?.name === 'ADMIN' || user?.profile?.name === 'SUPER_ADMIN';
+  const isLeagueStaff =
+    user?.profile?.name === 'MANAGER_LEAGUE' ||
+    user?.profile?.name === 'ASISTANT_LEAGUE';
+  const canManage =
+    user?.profile?.name === 'ADMIN' ||
+    user?.profile?.name === 'SUPER_ADMIN' ||
+    user?.profile?.name === 'MANAGER_LEAGUE';
 
   const [form, setForm] = useState({
     name: '',
     competitionId: '',
     startDate: '',
     endDate: '',
-    isActive: true,
+    status: SEASON_STATUS.PENDING,
   });
 
   useEffect(() => {
-    if (isAdmin) dispatch(getCompetitions());
-  }, [dispatch, isAdmin]);
+    if (canManage) dispatch(getCompetitions());
+  }, [dispatch, canManage]);
+
+  useEffect(() => {
+    if (form.competitionId) return;
+    if (isLeagueStaff && user?.competitionId) {
+      setForm((prev) => ({ ...prev, competitionId: user.competitionId }));
+      return;
+    }
+    if (competitions.length === 1) {
+      setForm((prev) => ({ ...prev, competitionId: competitions[0].id }));
+    }
+  }, [competitions, form.competitionId, isLeagueStaff, user?.competitionId]);
+
+  const lockedCompetition =
+    competitions.find((c) => c.id === form.competitionId) ||
+    (isLeagueStaff && competitions[0]) ||
+    null;
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const result = await dispatch(createSeason(form));
     if (createSeason.fulfilled.match(result)) {
-      navigate('/seasons');
+      const season = result.payload;
+      navigate(`/seasons/${season.id}`, {
+        state: { competitionId: form.competitionId, season },
+      });
     }
   };
 
-  if (!isAdmin) {
+  if (!canManage) {
     return (
       <div className="container py-4">
         <p>No tienes permiso para ver esta sección.</p>
@@ -56,6 +78,10 @@ export default function SeasonAdd() {
           <h4 className="mb-0">Nueva temporada</h4>
         </div>
         <div className="card-body">
+          <p className="text-muted small">
+            Crea una edición nueva (ej. 2026-2027) sin modificar temporadas
+            anteriores. Luego podrás inscribir los equipos que participan.
+          </p>
           <form onSubmit={handleSubmit}>
             <div className="row g-3">
               <div className="col-md-6">
@@ -65,26 +91,43 @@ export default function SeasonAdd() {
                   name="name"
                   value={form.name}
                   onChange={handleChange}
-                  placeholder="2025-2026"
+                  placeholder="2026-2027"
                   required
                 />
               </div>
               <div className="col-md-6">
                 <label className="form-label">Competición</label>
-                <select
-                  className="form-select"
-                  name="competitionId"
-                  value={form.competitionId}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Seleccionar…</option>
-                  {competitions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                {isLeagueStaff ? (
+                  <>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={
+                        lockedCompetition?.name ||
+                        (form.competitionId ? 'Tu liga' : 'Cargando…')
+                      }
+                      disabled
+                    />
+                    <small className="text-muted">
+                      La temporada se crea en tu liga.
+                    </small>
+                  </>
+                ) : (
+                  <select
+                    className="form-select"
+                    name="competitionId"
+                    value={form.competitionId}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Seleccionar…</option>
+                    {competitions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="col-md-6">
                 <label className="form-label">Fecha inicio</label>
@@ -106,20 +149,25 @@ export default function SeasonAdd() {
                   onChange={handleChange}
                 />
               </div>
-              <div className="col-12">
-                <div className="form-check">
-                  <input
-                    type="checkbox"
-                    className="form-check-input"
-                    id="isActive"
-                    name="isActive"
-                    checked={form.isActive}
-                    onChange={handleChange}
-                  />
-                  <label className="form-check-label" htmlFor="isActive">
-                    Marcar como temporada activa
-                  </label>
-                </div>
+              <div className="col-md-6">
+                <label className="form-label">Estado inicial</label>
+                <select
+                  className="form-select"
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                >
+                  <option value={SEASON_STATUS.PENDING}>
+                    {SEASON_STATUS_LABEL.PENDING}
+                  </option>
+                  <option value={SEASON_STATUS.ACTIVE}>
+                    {SEASON_STATUS_LABEL.ACTIVE}
+                  </option>
+                </select>
+                <small className="text-muted">
+                  Si eliges Activa, la temporada ACTIVE anterior pasará a
+                  Finalizada.
+                </small>
               </div>
             </div>
 
@@ -131,7 +179,7 @@ export default function SeasonAdd() {
 
             <div className="mt-4 d-flex gap-2">
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Guardando…' : 'Guardar'}
+                {saving ? 'Guardando…' : 'Crear y continuar'}
               </button>
               <button
                 type="button"

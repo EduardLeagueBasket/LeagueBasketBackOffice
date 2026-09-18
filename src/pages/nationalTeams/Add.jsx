@@ -124,6 +124,7 @@ export default function AddNationalTeam() {
       const payload = {
         name: formData.name.trim(),
         countryCode: formData.countryCode.trim().toUpperCase(),
+        countryId: formData.countryId || undefined,
         gender: formData.gender,
         category: formData.category,
         logo: formData.logo || undefined,

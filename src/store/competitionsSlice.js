@@ -21,7 +21,7 @@ export const getCompetitions = createAsyncThunk(
 
 export const createCompetition = createAsyncThunk(
   'competitions/create',
-  async ({ name, type, gender, season, countryId, file }, thunkAPI) => {
+  async ({ name, type, gender, season, countryId, managerUserId, file }, thunkAPI) => {
     try {
       const fd = new FormData();
       if (file) fd.append('file', file);
@@ -30,6 +30,7 @@ export const createCompetition = createAsyncThunk(
       if (gender) fd.append('gender', gender);
       if (season) fd.append('season', season);
       fd.append('countryId', countryId);
+      if (managerUserId) fd.append('managerUserId', managerUserId);
 
       const response = await apiPostFormData(adminPath('/competitions'), fd);
       return response;
@@ -62,6 +63,7 @@ export const updateCompetition = createAsyncThunk(
       if (data.gender) fd.append('gender', data.gender);
       if (data.season) fd.append('season', data.season);
       if (data.countryId != null) fd.append('countryId', data.countryId);
+      if (data.managerUserId != null) fd.append('managerUserId', data.managerUserId);
       if (data.isActive !== undefined && data.isActive !== null) {
         fd.append('isActive', String(Boolean(data.isActive)));
       }

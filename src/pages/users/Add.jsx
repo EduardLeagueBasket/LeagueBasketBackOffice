@@ -2,59 +2,73 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getProfiles } from '../../store/profileSlice';
 import { createUser } from '../../store/createUserSlice';
+import { getCompetitions } from '../../store/competitionsSlice';
 import { ClipLoader } from "react-spinners";
 import Swal from 'sweetalert2'
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import ButtonAction from '../../components/Button/ButtonAction';
 import { mapProfileName } from '../../utils/MapRoleName';
 
+const LEAGUE_BOUND_PROFILES = ['MANAGER_TEAM', 'ASISTANT_LEAGUE', 'ASISTANT_TEAM'];
+
 const Users = () => {
   const { user } = useSelector((state) => state.auth);
-  console.log('user', user);
   const dispatch = useDispatch();
+  const { competitions = [], loading: competitionsLoading = false } = useSelector(
+    (state) => state.competitions || {},
+  );
   const [profiles, setProfiles] = useState([]);
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
     email: '',
     telefono: '',
-    perfil: ''
+    perfil: '',
+    competitionId: '',
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
+  const isLeagueStaff =
+    user?.profile?.name === 'MANAGER_LEAGUE' ||
+    user?.profile?.name === 'ASISTANT_LEAGUE';
+  const selectedProfile = profiles.find((p) => String(p.id) === String(formData.perfil));
+  const needsCompetition =
+    !isLeagueStaff && LEAGUE_BOUND_PROFILES.includes(selectedProfile?.rawName);
+
   useEffect(() => {
-    if (profiles.length === 0) {
-      handleGetProfiles();
+    handleGetProfiles();
+    if (!isLeagueStaff) {
+      dispatch(getCompetitions());
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   const handleGetProfiles = async () => {
     const result = await dispatch(getProfiles());
 
     if (result.payload.length > 0) {
       const rawProfiles = result.payload;
-console.log('rawProfiles', rawProfiles);
       const filteredProfiles = rawProfiles
         .filter(profile => profile.name !== 'USER')
         .map(profile => {
-          if (user.profile.name === 'MANAGER_LEAGUE' || user.profile.name === 'ASISTANT_LEAGUE') {
+          if (isLeagueStaff) {
             if (profile.name === 'MANAGER_TEAM' || profile.name === 'ASISTANT_LEAGUE') {
               return {
                 ...profile,
+                rawName: profile.name,
                 name: mapProfileName(profile.name),
               };
             }
-            return null; // <- Evita undefined
-          } else {
-            return {
-              ...profile,
-              name: mapProfileName(profile.name),
-            };
+            return null;
           }
+          return {
+            ...profile,
+            rawName: profile.name,
+            name: mapProfileName(profile.name),
+          };
         })
         .filter(profile => profile !== null);
-
 
       setProfiles(filteredProfiles);
     }
@@ -67,7 +81,6 @@ console.log('rawProfiles', rawProfiles);
       [name]: value
     }));
 
-    // Limpiar error cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -88,6 +101,9 @@ console.log('rawProfiles', rawProfiles);
     }
     if (!formData.telefono.trim()) newErrors.telefono = 'El teléfono es requerido';
     if (!formData.perfil) newErrors.perfil = 'Debe seleccionar un perfil';
+    if (needsCompetition && !formData.competitionId) {
+      newErrors.competitionId = 'Debes indicar la liga de este usuario';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -102,14 +118,16 @@ console.log('rawProfiles', rawProfiles);
       return;
     };
 
-
     try {
       const data = {
         name: formData.nombre,
         lastName: formData.apellido,
         email: formData.email,
         phone: formData.telefono,
-        profileId: formData.perfil
+        profileId: formData.perfil,
+        ...(needsCompetition && formData.competitionId
+          ? { competitionId: formData.competitionId }
+          : {}),
       }
       const resp = await dispatch(createUser(data));
       if (createUser.rejected.match(resp)) {
@@ -140,7 +158,8 @@ console.log('rawProfiles', rawProfiles);
       apellido: '',
       email: '',
       telefono: '',
-      perfil: ''
+      perfil: '',
+      competitionId: '',
     });
     setErrors({});
   };
@@ -193,6 +212,43 @@ console.log('rawProfiles', rawProfiles);
                   </select>
                   {errors.perfil && <small className="text-danger">{errors.perfil}</small>}
                 </div>
+                {needsCompetition && (
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Liga *</label>
+                    <select
+                      className="form-select"
+                      onChange={handleInputChange}
+                      name="competitionId"
+                      value={formData.competitionId}
+                      disabled={competitionsLoading}
+                    >
+                      <option value="">
+                        {competitionsLoading ? 'Cargando ligas...' : 'Seleccione la liga'}
+                      </option>
+                      {competitions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}{c.season ? ` — ${c.season}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.competitionId && (
+                      <small className="text-danger">{errors.competitionId}</small>
+                    )}
+                    <small className="text-muted d-block">
+                      El gerente de equipo quedará asociado a esta liga. Los equipos que se le asignen también.
+                    </small>
+                  </div>
+                )}
+                {isLeagueStaff && (
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Liga</label>
+                    <input
+                      className="form-control"
+                      value="Se asignará automáticamente a tu liga"
+                      disabled
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="d-flex justify-content-end">

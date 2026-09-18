@@ -6,6 +6,7 @@ import { ClipLoader } from 'react-spinners';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import { getCatalogCountries } from '../../store/catalogCountriesSlice';
 import { clearCompetitionsErrors, getCompetitionById, updateCompetition } from '../../store/competitionsSlice';
+import { getUsers } from '../../store/usersSlice';
 
 const CompetitionEdit = () => {
   const dispatch = useDispatch();
@@ -20,6 +21,9 @@ const CompetitionEdit = () => {
     updating = false,
     updateError = null,
   } = useSelector((state) => state.competitions || {});
+  const { users = [], loading: usersLoading = false } = useSelector((state) => state.users || {});
+
+  const managerUsers = users.filter((u) => u?.profile?.name === 'MANAGER_LEAGUE');
 
   const [logoPreview, setLogoPreview] = useState('');
   const [formData, setFormData] = useState({
@@ -30,6 +34,7 @@ const CompetitionEdit = () => {
     season: '',
     file: null,
     isActive: true,
+    managerUserId: '',
   });
 
   const templates = useMemo(() => ([
@@ -41,6 +46,7 @@ const CompetitionEdit = () => {
 
   useEffect(() => {
     dispatch(getCatalogCountries());
+    dispatch(getUsers({ page: 1, limit: 200 }));
   }, [dispatch]);
 
   useEffect(() => {
@@ -57,6 +63,7 @@ const CompetitionEdit = () => {
       season: competition?.season ?? '',
       file: null,
       isActive: Boolean(competition?.isActive ?? true),
+      managerUserId: competition?.managerUserId || '',
     });
     setLogoPreview(competition?.logo ?? '');
   }, [competition]);
@@ -64,7 +71,7 @@ const CompetitionEdit = () => {
   useEffect(() => {
     if (updateError) dispatch(clearCompetitionsErrors());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.countryId, formData.name, formData.type, formData.gender, formData.season]);
+  }, [formData.countryId, formData.name, formData.type, formData.gender, formData.season, formData.managerUserId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,6 +111,7 @@ const CompetitionEdit = () => {
         gender: formData.gender || null,
         season: formData.season.trim() || null,
         countryId: formData.countryId,
+        managerUserId: formData.managerUserId,
         file: formData.file,
         isActive: formData.isActive,
       };
@@ -270,7 +278,7 @@ const CompetitionEdit = () => {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">Temporada</label>
+                <label className="form-label">Etiqueta (opcional)</label>
                 <input
                   type="text"
                   className="form-control"
@@ -279,7 +287,34 @@ const CompetitionEdit = () => {
                   onChange={handleChange}
                   disabled={updating}
                 />
+                <small className="text-muted">
+                  Las ediciones anuales se gestionan en <strong>Temporadas</strong>.
+                </small>
               </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Gerente de la liga *</label>
+              <select
+                className="form-select"
+                name="managerUserId"
+                value={formData.managerUserId}
+                onChange={handleChange}
+                required
+                disabled={updating || usersLoading}
+              >
+                <option value="">
+                  {usersLoading ? 'Cargando usuarios...' : 'Selecciona un gerente'}
+                </option>
+                {managerUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.lastName ?? ''} — {u.email}
+                  </option>
+                ))}
+              </select>
+              <small className="text-muted">
+                Este usuario será quien administre juegos, equipos e historias de esta liga.
+              </small>
             </div>
 
             <div className="mb-3">
@@ -301,7 +336,7 @@ const CompetitionEdit = () => {
             )}
 
             <div className="d-flex justify-content-end">
-              <button type="submit" className="btn btn-primary" disabled={updating || !formData.countryId}>
+              <button type="submit" className="btn btn-primary" disabled={updating || !formData.countryId || !formData.managerUserId}>
                 {updating ? <ClipLoader color="#fff" size={18} /> : 'Guardar cambios'}
               </button>
             </div>

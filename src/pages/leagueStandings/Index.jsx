@@ -6,6 +6,7 @@ import {
   getLeagueStandings,
   recalculateLeagueStandings,
 } from '../../store/leagueStandings/leagueStandingsSlice';
+import { SEASON_STATUS_LABEL, seasonStatusOf } from '../../utils/seasonApi';
 
 export default function LeagueStandingsIndex() {
   const dispatch = useDispatch();
@@ -15,34 +16,56 @@ export default function LeagueStandingsIndex() {
   const { competitions = [] } = useSelector((s) => s.competitions || {});
   const { list: seasons = [] } = useSelector((s) => s.seasons || {});
   const user = useSelector((s) => s.auth.user);
-  const isAdmin =
-    user?.profile?.name === 'ADMIN' || user?.profile?.name === 'SUPER_ADMIN';
+  const isLeagueStaff =
+    user?.profile?.name === 'MANAGER_LEAGUE' ||
+    user?.profile?.name === 'ASISTANT_LEAGUE';
+  const canView =
+    user?.profile?.name === 'ADMIN' ||
+    user?.profile?.name === 'SUPER_ADMIN' ||
+    isLeagueStaff;
 
   const [competitionId, setCompetitionId] = useState('');
   const [seasonId, setSeasonId] = useState('');
 
   useEffect(() => {
-    if (isAdmin) dispatch(getCompetitions());
-  }, [dispatch, isAdmin]);
+    if (canView) dispatch(getCompetitions());
+  }, [dispatch, canView]);
 
   useEffect(() => {
-    if (isAdmin && competitionId) {
+    if (canView && competitionId) {
       dispatch(getSeasons({ competitionId }));
     }
-  }, [dispatch, isAdmin, competitionId]);
+  }, [dispatch, canView, competitionId]);
+
+  useEffect(() => {
+    if (competitionId) return;
+    if (isLeagueStaff && user?.competitionId) {
+      setCompetitionId(user.competitionId);
+      return;
+    }
+    if (competitions.length === 1) {
+      setCompetitionId(competitions[0].id);
+    }
+  }, [competitions, competitionId, isLeagueStaff, user?.competitionId]);
 
   useEffect(() => {
     if (seasons.length && !seasonId) {
-      const active = seasons.find((s) => s.isActive) ?? seasons[0];
+      const active =
+        seasons.find((s) => seasonStatusOf(s) === 'ACTIVE') ?? seasons[0];
       if (active) setSeasonId(active.id);
     }
   }, [seasons, seasonId]);
 
   useEffect(() => {
-    if (isAdmin && competitionId && seasonId) {
+    if (canView && competitionId && seasonId) {
       dispatch(getLeagueStandings({ competitionId, seasonId }));
     }
-  }, [dispatch, isAdmin, competitionId, seasonId]);
+  }, [dispatch, canView, competitionId, seasonId]);
+
+  const lockedCompetition =
+    competitions.find((c) => c.id === competitionId) ||
+    (isLeagueStaff && competitions[0]) ||
+    null;
 
   const teamNameById = useMemo(() => {
     const map = {};
@@ -56,7 +79,7 @@ export default function LeagueStandingsIndex() {
     dispatch(recalculateLeagueStandings({ competitionId, seasonId }));
   };
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <div className="container py-4">
         <p>No tienes permiso para ver esta sección.</p>
@@ -82,21 +105,33 @@ export default function LeagueStandingsIndex() {
           <div className="row g-3 mb-3">
             <div className="col-md-6">
               <label className="form-label">Competición</label>
-              <select
-                className="form-select"
-                value={competitionId}
-                onChange={(e) => {
-                  setCompetitionId(e.target.value);
-                  setSeasonId('');
-                }}
-              >
-                <option value="">Seleccionar…</option>
-                {competitions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              {isLeagueStaff ? (
+                <input
+                  type="text"
+                  className="form-control"
+                  value={
+                    lockedCompetition?.name ||
+                    (competitionId ? 'Tu liga' : 'Cargando…')
+                  }
+                  disabled
+                />
+              ) : (
+                <select
+                  className="form-select"
+                  value={competitionId}
+                  onChange={(e) => {
+                    setCompetitionId(e.target.value);
+                    setSeasonId('');
+                  }}
+                >
+                  <option value="">Seleccionar…</option>
+                  {competitions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="col-md-6">
               <label className="form-label">Temporada</label>
@@ -110,7 +145,9 @@ export default function LeagueStandingsIndex() {
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
-                    {s.isActive ? ' (activa)' : ''}
+                    {SEASON_STATUS_LABEL[seasonStatusOf(s)]
+                      ? ` (${SEASON_STATUS_LABEL[seasonStatusOf(s)].toLowerCase()})`
+                      : ''}
                   </option>
                 ))}
               </select>

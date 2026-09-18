@@ -37,10 +37,19 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem('user', JSON.stringify(response)); // guardamos inmediatamente
       return response;
     } catch (error) {
+      const status = error?.response?.status;
       const backendMessage = error?.response?.data?.message;
       if (backendMessage) {
         if (Array.isArray(backendMessage)) return thunkAPI.rejectWithValue(backendMessage.join(', '));
         if (typeof backendMessage === 'string') return thunkAPI.rejectWithValue(backendMessage);
+      }
+      if (status === 404) {
+        return thunkAPI.rejectWithValue(
+          'No se encontró el servicio de login. Revisa que el gateway esté en el puerto correcto (REACT_APP_API_URL).',
+        );
+      }
+      if (status === 401) {
+        return thunkAPI.rejectWithValue('Credenciales inválidas');
       }
       return thunkAPI.rejectWithValue('Error al iniciar sesión');
     }

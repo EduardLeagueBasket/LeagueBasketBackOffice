@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import { getCompetitions } from '../../store/competitionsSlice';
 import { getTeams } from '../../store/teams/listTeamsSlice';
-import { getSeasons } from '../../store/seasons/seasonsSlice';
+import { getSeasons, getSeasonTeams } from '../../store/seasons/seasonsSlice';
 import { bulkCreateLeagueGames } from '../../store/leagueGames/leagueGamesSlice';
 import { formatErrorForDisplay } from '../../utils/apiErrorMessage';
 import {
@@ -13,6 +13,7 @@ import {
   mapSpreadsheetRowsToMatches,
   parseLeagueMatchesSpreadsheet,
 } from '../../utils/leagueMatchesSpreadsheet';
+import { SEASON_STATUS_LABEL, seasonStatusOf } from '../../utils/seasonApi';
 
 export default function LeagueGamesBulkAdd() {
   const dispatch = useDispatch();
@@ -20,16 +21,17 @@ export default function LeagueGamesBulkAdd() {
   const { saving } = useSelector((s) => s.leagueGames);
   const { competitions = [] } = useSelector((s) => s.competitions || {});
   const { teams = [] } = useSelector((s) => s.teamsList || {});
-  const { list: seasons = [] } = useSelector((s) => s.seasons || {});
+  const { list: seasons = [], seasonTeams = [] } = useSelector(
+    (s) => s.seasons || {},
+  );
 
   const [competitionId, setCompetitionId] = useState('');
   const [seasonId, setSeasonId] = useState('');
-  /** Columna de equipo (id/nombre) es local o visitante */
-  const [leftSideRole, setLeftSideRole] = useState('home');
   const [fileName, setFileName] = useState('');
   const [rawRows, setRawRows] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [copiedId, setCopiedId] = useState('');
 
   useEffect(() => {
     dispatch(getCompetitions());
@@ -37,22 +39,61 @@ export default function LeagueGamesBulkAdd() {
   }, [dispatch]);
 
   useEffect(() => {
+    if (!competitionId && competitions.length === 1) {
+      setCompetitionId(competitions[0].id);
+    }
+  }, [competitions, competitionId]);
+
+  useEffect(() => {
     if (competitionId) dispatch(getSeasons({ competitionId }));
   }, [dispatch, competitionId]);
 
+  useEffect(() => {
+    if (seasonId) dispatch(getSeasonTeams(seasonId));
+  }, [dispatch, seasonId]);
+
+  /** Todos los equipos de la liga (para copiar UUID). */
   const competitionTeams = useMemo(
-    () => teams.filter((t) => t.competitionId === competitionId),
+    () =>
+      teams
+        .filter((t) => t.competitionId === competitionId)
+        .slice()
+        .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es')),
     [teams, competitionId],
   );
+
+  /**
+   * Validación del Excel: si hay temporada con inscritos, solo esos;
+   * si no, todos los de la competición.
+   */
+  const validationTeams = useMemo(() => {
+    if (!seasonId || seasonTeams.length === 0) return competitionTeams;
+    const enrolled = new Set(seasonTeams.map((st) => st.teamId));
+    return competitionTeams.filter((t) => enrolled.has(t.id));
+  }, [competitionTeams, seasonId, seasonTeams]);
 
   const { matches, errors: mapErrors } = useMemo(() => {
     if (!competitionId || rawRows.length === 0) {
       return { matches: [], errors: [] };
     }
-    return mapSpreadsheetRowsToMatches(rawRows, competitionTeams, leftSideRole);
-  }, [rawRows, competitionTeams, leftSideRole, competitionId]);
+    return mapSpreadsheetRowsToMatches(rawRows, validationTeams);
+  }, [rawRows, validationTeams, competitionId]);
 
   const allErrors = [...parseErrors, ...mapErrors];
+
+  const copyTeamId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(''), 1500);
+    } catch {
+      Swal.fire({
+        icon: 'info',
+        title: 'Copia manual',
+        text: id,
+      });
+    }
+  };
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -63,7 +104,7 @@ export default function LeagueGamesBulkAdd() {
       Swal.fire({
         icon: 'warning',
         title: 'Selecciona la competición primero',
-        text: 'Así podemos validar los nombres/ids de equipo del Excel.',
+        text: 'Así validamos que los UUID del Excel pertenecen a esa liga.',
       });
       return;
     }
@@ -160,6 +201,7 @@ export default function LeagueGamesBulkAdd() {
                   value={competitionId}
                   onChange={(e) => {
                     setCompetitionId(e.target.value);
+                    setSeasonId('');
                     setRawRows([]);
                     setParseErrors([]);
                     setFileName('');
@@ -186,41 +228,79 @@ export default function LeagueGamesBulkAdd() {
                   {seasons.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
-                      {s.isActive ? ' (activa)' : ''}
+                      {SEASON_STATUS_LABEL[seasonStatusOf(s)]
+                        ? ` (${SEASON_STATUS_LABEL[seasonStatusOf(s)].toLowerCase()})`
+                        : ''}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
+            {competitionId && (
+              <div className="border rounded p-3 mb-3">
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                  <h6 className="mb-0">Equipos de la liga (copia el UUID)</h6>
+                  <small className="text-muted">
+                    {competitionTeams.length} equipo(s)
+                    {seasonId && seasonTeams.length > 0
+                      ? ` · ${seasonTeams.length} inscrito(s) en la temporada`
+                      : ''}
+                  </small>
+                </div>
+                {competitionTeams.length === 0 ? (
+                  <p className="text-muted small mb-0">
+                    No hay equipos en esta competición.
+                  </p>
+                ) : (
+                  <div className="table-responsive" style={{ maxHeight: 260 }}>
+                    <table className="table table-sm table-hover align-middle mb-0">
+                      <thead className="table-light sticky-top">
+                        <tr>
+                          <th>Equipo</th>
+                          <th>ID</th>
+                          <th style={{ width: 90 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {competitionTeams.map((t) => (
+                          <tr key={t.id}>
+                            <td>{t.name}</td>
+                            <td>
+                              <code className="small user-select-all">{t.id}</code>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => copyTeamId(t.id)}
+                              >
+                                {copiedId === t.id ? 'Copiado' : 'Copiar'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="border rounded p-3 mb-3 bg-light">
               <h6 className="mb-2">Formato del Excel</h6>
               <p className="small text-muted mb-2">
-                Columnas: <code>id</code> (opcional), <code>nombre_equipo</code>,{' '}
-                <code>rival</code>, <code>fecha</code>, <code>hora</code>,{' '}
+                Cada fila = un partido. Columnas:{' '}
+                <code>id_equipo_home</code>, <code>id_equipo_away</code>,{' '}
+                <code>fecha</code>, <code>hora</code>,{' '}
                 <code>ubicacion</code> (opcional).
               </p>
+              <p className="small text-muted mb-3">
+                Pega los UUID del listado de arriba. No uses nombres: evitas
+                errores de coincidencia.
+              </p>
               <div className="row g-3 align-items-end">
-                <div className="col-md-6">
-                  <label className="form-label">
-                    La columna del equipo (id / nombre) es…
-                  </label>
-                  <select
-                    className="form-select"
-                    value={leftSideRole}
-                    onChange={(e) => setLeftSideRole(e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="home">Local (casa)</option>
-                    <option value="away">Visitante</option>
-                  </select>
-                  <small className="text-muted">
-                    {leftSideRole === 'home'
-                      ? 'Equipo = local · Rival = visitante'
-                      : 'Equipo = visitante · Rival = local (debe existir en la liga)'}
-                  </small>
-                </div>
-                <div className="col-md-6">
+                <div className="col-md-8">
                   <label className="form-label">Archivo Excel (.xlsx, .xls, .csv)</label>
                   <input
                     type="file"
@@ -233,14 +313,19 @@ export default function LeagueGamesBulkAdd() {
                     <small className="text-muted d-block mt-1">{fileName}</small>
                   )}
                 </div>
+                <div className="col-md-4">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary w-100"
+                    onClick={() =>
+                      downloadLeagueMatchesTemplate(competitionTeams)
+                    }
+                    disabled={!competitionId}
+                  >
+                    Descargar plantilla
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary mt-3"
-                onClick={downloadLeagueMatchesTemplate}
-              >
-                Descargar plantilla
-              </button>
             </div>
 
             {allErrors.length > 0 && (
@@ -272,10 +357,20 @@ export default function LeagueGamesBulkAdd() {
                   </thead>
                   <tbody>
                     {matches.map((m) => (
-                      <tr key={`${m.excelRow}-${m.homeTeamId}-${m.awayLabel}`}>
+                      <tr key={`${m.excelRow}-${m.homeTeamId}-${m.awayTeamId}`}>
                         <td>{m.excelRow}</td>
-                        <td>{m.homeLabel}</td>
-                        <td>{m.awayLabel}</td>
+                        <td>
+                          {m.homeLabel}
+                          <div>
+                            <code className="small text-muted">{m.homeTeamId}</code>
+                          </div>
+                        </td>
+                        <td>
+                          {m.awayLabel}
+                          <div>
+                            <code className="small text-muted">{m.awayTeamId}</code>
+                          </div>
+                        </td>
                         <td>{m.matchDate}</td>
                         <td>{m.matchTime}</td>
                         <td>{m.venue || '—'}</td>
@@ -284,8 +379,7 @@ export default function LeagueGamesBulkAdd() {
                   </tbody>
                 </table>
                 <small className="text-muted">
-                  {matches.length} partido(s) listos · {competitionTeams.length}{' '}
-                  equipo(s) en la competición
+                  {matches.length} partido(s) listos
                 </small>
               </div>
             )}

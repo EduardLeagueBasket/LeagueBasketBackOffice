@@ -13,6 +13,7 @@ import EditUser from './pages/users/Edit';
 import ForceChangePassword from './pages/password/ForceChangePassword';
 import Teams from './pages/teams/Index';
 import AddTeam from './pages/teams/Add';
+import EditTeam from './pages/teams/Edit';
 import ManagerTeamEdit from './pages/teams/manager/TeamEdit';
 import NationalTeams from './pages/nationalTeams/Index';
 import AddNationalTeam from './pages/nationalTeams/Add';
@@ -57,10 +58,14 @@ import LeagueGamesBulkAdd from './pages/leagueGames/BulkAdd';
 import ManagerLeagueGameAdd from './pages/leagueGames/ManagerAdd';
 import SeasonsIndex from './pages/seasons/Index';
 import SeasonAdd from './pages/seasons/Add';
+import SeasonDetail from './pages/seasons/Detail';
 import LeagueStandingsIndex from './pages/leagueStandings/Index';
 import StoriesIndex from './pages/stories/Index';
 import StoriesAdd from './pages/stories/Add';
 import PublishersIndex from './pages/publishers/Index';
+import ArticleCategoriesIndex from './pages/articleCategories/Index';
+import ArticlesIndex from './pages/articles/Index';
+import ArticlesAdd from './pages/articles/Add';
 
 const App = () => {
   const user = useSelector((state) => state.auth.user);
@@ -93,6 +98,7 @@ const App = () => {
           <Route path="users/:id" element={<EditUser />} />
           <Route path="teams" element={<Teams />} />
           <Route path="teams/add" element={<AddTeam />} />
+          <Route path="teams/edit/:id" element={<EditTeam />} />
           <Route path="teams/manager" element={<ManagerTeamEdit />} />
           <Route path="nationals-teams" element={<NationalTeams />} />
           <Route path="nationals-teams/add" element={<AddNationalTeam />} />
@@ -119,10 +125,14 @@ const App = () => {
           <Route path="league-games/manager" element={<ManagerLeagueGameAdd />} />
           <Route path="seasons" element={<SeasonsIndex />} />
           <Route path="seasons/add" element={<SeasonAdd />} />
+          <Route path="seasons/:id" element={<SeasonDetail />} />
           <Route path="league-standings" element={<LeagueStandingsIndex />} />
           <Route path="stories" element={<StoriesIndex />} />
           <Route path="stories/add" element={<StoriesAdd />} />
           <Route path="publishers" element={<PublishersIndex />} />
+          <Route path="article-categories" element={<ArticleCategoriesIndex />} />
+          <Route path="articles" element={<ArticlesIndex />} />
+          <Route path="articles/add" element={<ArticlesAdd />} />
           <Route path="tickets/venues" element={<TicketVenuesIndex />} />
           <Route path="tickets/venues/add" element={<TicketVenueAdd />} />
           <Route path="tickets/venues/edit/:id" element={<TicketVenueEdit />} />

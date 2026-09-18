@@ -3,17 +3,17 @@ import { useDispatch, useSelector } from 'react-redux';
 import { ClipLoader } from "react-spinners";
 import Swal from 'sweetalert2';
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
-import { getNationalTeams } from '../../store/nationalTeams/getNationalTeamsSlice';
+import { getMyNationalTeam } from '../../store/nationalTeams/getMyNationalTeamSlice';
 import { createNationalGame } from '../../store/nationalGames/createNationalGameSlice';
 import { nationalGameTypes } from '../../utils/gameTypes';
 
 export default function AddNationalGame() {
   const dispatch = useDispatch();
 
-  const { nationalTeams = [], loading: teamsLoading } = useSelector(state => state.nationalTeams);
+  const { myNationalTeam, loading: myNationalTeamLoading } = useSelector(state => state.myNationalTeam);
 
   const [formData, setFormData] = useState({
-    nationalTeamId: '',
+    nationalTeamId: myNationalTeam?.id || myNationalTeam?.team?.id || '',
     opponentName: '',
     gameDate: '',
     gameTime: '',
@@ -25,7 +25,7 @@ export default function AddNationalGame() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    dispatch(getNationalTeams());
+    dispatch(getMyNationalTeam());
   }, [dispatch]);
 
   const validateForm = () => {
@@ -164,21 +164,19 @@ export default function AddNationalGame() {
                   name="nationalTeamId"
                   value={formData.nationalTeamId}
                   onChange={handleChange}
-                  disabled={teamsLoading || isSubmitting}
+                  disabled={myNationalTeamLoading || isSubmitting}
                 >
                   <option value="">Selecciona un equipo nacional</option>
-                  {nationalTeams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name} ({team.countryCode || team.country || '—'})
-                    </option>
-                  ))}
+                  <option key={myNationalTeam?.id} value={myNationalTeam?.id}>
+                    {myNationalTeam?.name} ({myNationalTeam?.countryCode || myNationalTeam?.country || '—'})
+                  </option>
                 </select>
                 {errors.nationalTeamId && (
                   <div className="invalid-feedback">
                     {errors.nationalTeamId}
                   </div>
                 )}
-                {teamsLoading && (
+                {myNationalTeamLoading && (
                   <small className="text-muted">
                     <ClipLoader color="#007bff" size={12} /> Cargando equipos...
                   </small>
@@ -288,7 +286,7 @@ export default function AddNationalGame() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSubmitting || teamsLoading}
+                disabled={isSubmitting || myNationalTeamLoading}
               >
                 {isSubmitting ? (
                   <>

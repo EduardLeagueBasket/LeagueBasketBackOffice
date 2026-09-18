@@ -2,6 +2,8 @@ export const mapProfileName = (name) => {
   switch (name) {
     case 'SUPER_ADMIN':
       return 'Super Admin';
+    case 'ADMIN':
+      return 'Admin';
     case 'MANAGER_LEAGUE':
       return 'Gerente de liga';
     case 'MANAGER_TEAM':

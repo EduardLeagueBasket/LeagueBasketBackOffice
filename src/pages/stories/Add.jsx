@@ -1,61 +1,35 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ClipLoader } from 'react-spinners';
 import Swal from 'sweetalert2';
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
-import { getPublishers } from '../../store/publishers/publishersSlice';
 import { createStory } from '../../store/stories/storiesSlice';
 import { getCatalogCountries } from '../../store/catalogCountriesSlice';
-
-const publisherKey = (p) => `${p.entity_type}::${p.entity_id}`;
 
 export default function StoriesAdd() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const user = useSelector((state) => state.auth.user);
   const profileName = user?.profile?.name;
-  const isAdmin =
-    profileName === 'SUPER_ADMIN' || profileName === 'ADMIN';
+  const isAdmin = profileName === 'SUPER_ADMIN' || profileName === 'ADMIN';
 
   const { creating = false } = useSelector((state) => state.stories);
-  const { items: publishers = [], loading: loadingPublishers = false } =
-    useSelector((state) => state.publishers);
   const { countries = [] } = useSelector(
     (state) => state.catalogCountries || {},
   );
 
-  const initialKey = useMemo(() => {
-    const entityType = searchParams.get('entityType');
-    const entityId = searchParams.get('entityId');
-    if (entityType && entityId) return `${entityType}::${entityId}`;
-    return '';
-  }, [searchParams]);
-
-  const [selectedKey, setSelectedKey] = useState(initialKey);
   const [targetCountryCode, setTargetCountryCode] = useState('GLOBAL');
   const [mediaType, setMediaType] = useState('photo');
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [errors, setErrors] = useState({});
 
-  const selectedPublisher = useMemo(
-    () => publishers.find((p) => publisherKey(p) === selectedKey) || null,
-    [publishers, selectedKey],
-  );
-  const isPlatformPublisher = selectedPublisher?.entity_type === 'platform';
-
   useEffect(() => {
     if (isAdmin) {
-      dispatch(getPublishers());
       dispatch(getCatalogCountries());
     }
   }, [dispatch, isAdmin]);
-
-  useEffect(() => {
-    if (initialKey) setSelectedKey(initialKey);
-  }, [initialKey]);
 
   useEffect(() => {
     return () => {
@@ -72,8 +46,8 @@ export default function StoriesAdd() {
     const inferredType = selected.type.startsWith('video/') ? 'video' : 'photo';
     setFile(selected);
     setMediaType(inferredType);
-    setPreviewUrl(URL.createObjectURL(selected));
     setErrors((prev) => ({ ...prev, file: '' }));
+    setPreviewUrl(URL.createObjectURL(selected));
   };
 
   const validate = () => {
@@ -81,9 +55,6 @@ export default function StoriesAdd() {
     if (!file) next.file = 'Debes seleccionar una imagen o video';
     if (!['photo', 'video'].includes(mediaType)) {
       next.mediaType = 'Tipo inválido';
-    }
-    if (isAdmin && !selectedPublisher) {
-      next.publisher = 'Debes seleccionar un publisher';
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -98,11 +69,7 @@ export default function StoriesAdd() {
         createStory({
           file,
           mediaType,
-          entityType: selectedPublisher?.entity_type,
-          entityId: selectedPublisher?.entity_id,
-          targetCountryCode: isPlatformPublisher
-            ? targetCountryCode
-            : undefined,
+          targetCountryCode: isAdmin ? targetCountryCode : undefined,
         }),
       ).unwrap();
 
@@ -126,7 +93,12 @@ export default function StoriesAdd() {
     <div className="container-fluid">
       <div className="card shadow-sm">
         <div className="card-header d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">Nueva story</h5>
+          <div>
+            <h5 className="mb-0">Nueva story</h5>
+            {isAdmin && (
+              <small className="text-muted">Se publica como League Basket</small>
+            )}
+          </div>
           <ButtonNavigation
             url="/stories"
             icon="bi bi-arrow-left"
@@ -136,31 +108,6 @@ export default function StoriesAdd() {
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             {isAdmin && (
-              <div className="mb-3">
-                <label className="form-label">Publisher</label>
-                <select
-                  className={`form-select ${errors.publisher ? 'is-invalid' : ''}`}
-                  value={selectedKey}
-                  onChange={(e) => {
-                    setSelectedKey(e.target.value);
-                    setErrors((prev) => ({ ...prev, publisher: '' }));
-                  }}
-                  disabled={creating || loadingPublishers}
-                >
-                  <option value="">Selecciona un publisher…</option>
-                  {publishers.map((p) => (
-                    <option key={publisherKey(p)} value={publisherKey(p)}>
-                      [{p.entity_type}] {p.display_name}
-                    </option>
-                  ))}
-                </select>
-                {errors.publisher && (
-                  <div className="invalid-feedback">{errors.publisher}</div>
-                )}
-              </div>
-            )}
-
-            {isAdmin && isPlatformPublisher && (
               <div className="mb-3">
                 <label className="form-label">País destino de la publicación</label>
                 <select
@@ -244,7 +191,7 @@ export default function StoriesAdd() {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={creating || !file || (isAdmin && !selectedPublisher)}
+              disabled={creating || !file}
             >
               {creating ? <ClipLoader size={18} color="#fff" /> : 'Publicar'}
             </button>
