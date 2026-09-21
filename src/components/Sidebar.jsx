@@ -14,6 +14,13 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
 
   const isManagerNationalTeam = user?.profile?.name === 'MANAGER_NATIONAL_TEAM';
   const isAssistantNationalTeam = user?.profile?.name === 'ASISTANT_NATIONAL_TEAM';
+  const isManagerRegionalTeam = user?.profile?.name === 'MANAGER_REGIONAL_TEAM';
+  const isAssistantRegionalTeam = user?.profile?.name === 'ASISTANT_REGIONAL_TEAM';
+  const isRepresentativeStaff =
+    isManagerNationalTeam ||
+    isAssistantNationalTeam ||
+    isManagerRegionalTeam ||
+    isAssistantRegionalTeam;
   const isManagerLeague = user?.profile?.name === 'MANAGER_LEAGUE';
   const isAssistantLeague = user?.profile?.name === 'ASISTANT_LEAGUE';
   const isManagerTeam = user?.profile?.name === 'MANAGER_TEAM';
@@ -90,11 +97,19 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
             </>
           )}
           {
-            (isManagerNationalTeam || isAssistantNationalTeam) &&
+            (isRepresentativeStaff || isAdmin || isSuperAdmin) &&
               <li className="nav-item">
                 <NavLink to="/national-games" className="nav-link">
                   <i className="bi bi-calendar-event me-2"></i>
-                  {!isCollapsed && <span>Juegos Nacionales</span>}
+                  {!isCollapsed && (
+                    <span>
+                      {isManagerRegionalTeam || isAssistantRegionalTeam
+                        ? 'Juegos Regionales'
+                        : isAdmin || isSuperAdmin
+                          ? 'Juegos de selecciones'
+                          : 'Juegos Nacionales'}
+                    </span>
+                  )}
                 </NavLink>
               </li>
           }
@@ -103,7 +118,7 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
               <li className="nav-item">
                 <NavLink to="/nationals-teams" className="nav-link">
                   <i className="bi bi-flag me-2"></i>
-                  {!isCollapsed && <span>Seleccion Nacional</span>}
+                  {!isCollapsed && <span>Selecciones</span>}
                 </NavLink>
               </li>
               <li className="nav-item">
@@ -182,7 +197,7 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
               )
           }
           {
-            (isSuperAdmin || isAdmin || isManagerTeam || isAssistantTeam || isManagerNationalTeam || isAssistantNationalTeam || isManagerLeague || isAssistantLeague) && (
+            (isSuperAdmin || isAdmin || isManagerTeam || isAssistantTeam || isRepresentativeStaff || isManagerLeague || isAssistantLeague) && (
               <>
                 <li className="nav-item">
                   <NavLink to="/stories" className="nav-link">
@@ -239,11 +254,15 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
             )
           }
           {
-            isManagerNationalTeam && (
+            (isManagerNationalTeam || isManagerRegionalTeam) && (
               <li className="nav-item">
                 <NavLink to="/national-teams/manager" className="nav-link">
                   <i className="bi bi-gear me-2"></i>
-                  {!isCollapsed && <span>Equipo Nacional</span>}
+                  {!isCollapsed && (
+                    <span>
+                      {isManagerRegionalTeam ? 'Equipo Regional' : 'Equipo Nacional'}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             )

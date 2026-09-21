@@ -16,6 +16,8 @@ const BACKOFFICE_PROFILES = new Set([
   'COACH',
   'MANAGER_NATIONAL_TEAM',
   'ASISTANT_NATIONAL_TEAM',
+  'MANAGER_REGIONAL_TEAM',
+  'ASISTANT_REGIONAL_TEAM',
 ]);
 
 const isBackofficeUser = (user) => {

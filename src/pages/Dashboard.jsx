@@ -24,7 +24,9 @@ const Dashboard = () => {
     content = <TeamHome user={user} />;
   } else if (
     profile === 'MANAGER_NATIONAL_TEAM' ||
-    profile === 'ASISTANT_NATIONAL_TEAM'
+    profile === 'ASISTANT_NATIONAL_TEAM' ||
+    profile === 'MANAGER_REGIONAL_TEAM' ||
+    profile === 'ASISTANT_REGIONAL_TEAM'
   ) {
     content = <NationalHome user={user} />;
   } else {

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { ClipLoader } from "react-spinners";
@@ -13,9 +13,11 @@ export default function NationalTeams() {
   const navigate = useNavigate();
   const { nationalTeams = [], loading = false, error = null } = useSelector(state => state.nationalTeams);
 
+  const [typeFilter, setTypeFilter] = useState('');
+
   useEffect(() => {
-    dispatch(getNationalTeams());
-  }, [dispatch]);
+    dispatch(getNationalTeams(typeFilter ? { type: typeFilter } : {}));
+  }, [dispatch, typeFilter]);
 
   const handleEdit = (item) => {
     navigate(`/nationals-teams/edit/${item.id}`);
@@ -33,7 +35,7 @@ export default function NationalTeams() {
       if (!result.isConfirmed) return;
       try {
         await dispatch(deactivateNationalTeam(item.id)).unwrap();
-        dispatch(getNationalTeams());
+        dispatch(getNationalTeams(typeFilter ? { type: typeFilter } : {}));
       } catch (err) {
         Swal.fire({
           icon: 'error',
@@ -72,6 +74,16 @@ export default function NationalTeams() {
       key: 'name',
       header: 'Nombre',
       accessor: 'name'
+    },
+    {
+      key: 'type',
+      header: 'Tipo',
+      cell: (item) => (item.type === 'regional' ? 'Regional' : 'Nacional')
+    },
+    {
+      key: 'region',
+      header: 'Región',
+      cell: (item) => item.region || '--'
     },
     {
       key: 'countryCode',
@@ -139,16 +151,28 @@ export default function NationalTeams() {
     <div className="container">
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center">
-          <h4 className="mb-0">Equipos Nacionales</h4>
-          <ButtonNavigation url="/nationals-teams/add" icon="bi bi-plus-lg" text="Agregar Equipo Nacional" />
+          <h4 className="mb-0">Selecciones y equipos regionales</h4>
+          <div className="d-flex gap-2 align-items-center">
+            <select
+              className="form-select"
+              style={{ width: 180 }}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="national_team">Nacionales</option>
+              <option value="regional">Regionales</option>
+            </select>
+            <ButtonNavigation url="/nationals-teams/add" icon="bi bi-plus-lg" text="Agregar" />
+          </div>
         </div>
 
         <div className="card-body">
           {nationalTeams.length === 0 ? (
             <div className="text-center py-5">
               <i className="bi bi-flag display-1 text-muted"></i>
-              <h5 className="mt-3 text-muted">No hay equipos nacionales registrados</h5>
-              <p className="text-muted">Comienza agregando el primer equipo nacional</p>
+              <h5 className="mt-3 text-muted">No hay equipos registrados</h5>
+              <p className="text-muted">Comienza agregando el primero</p>
             </div>
           ) : (
             <GenericTable

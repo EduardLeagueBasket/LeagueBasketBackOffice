@@ -18,6 +18,10 @@ export const mapProfileName = (name) => {
       return 'Gerente de equipo nacional';
     case 'ASISTANT_NATIONAL_TEAM':
       return 'Asistente de equipo nacional';
+    case 'MANAGER_REGIONAL_TEAM':
+      return 'Gerente de equipo regional';
+    case 'ASISTANT_REGIONAL_TEAM':
+      return 'Asistente de equipo regional';
     default:
       return name;
   }

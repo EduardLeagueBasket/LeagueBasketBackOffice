@@ -5,18 +5,36 @@ import { ClipLoader } from "react-spinners";
 import Swal from 'sweetalert2';
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getNationalTeams } from '../../store/nationalTeams/getNationalTeamsSlice';
+import { getMyNationalTeam } from '../../store/nationalTeams/getMyNationalTeamSlice';
 import { getNationalGameById, updateNationalGame, resetUpdateNationalGameState } from '../../store/nationalGames/updateNationalGameSlice';
 import { nationalGameTypes } from '../../utils/gameTypes';
 import { nationalMatchStatuses } from '../../utils/matchStatusLabels';
 import { formatErrorForDisplay } from '../../utils/apiErrorMessage';
+import {
+  isRegionalStaff,
+  isRegionalTeam,
+  isRepresentativeStaff,
+  representativeTeamLabel,
+  resolveMyTeam,
+} from '../../utils/representativeTeam';
 
 export default function EditNationalGame() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
+  const { user } = useSelector((state) => state.auth);
+  const staffUser = isRepresentativeStaff(user);
+  const regionalCopy = isRegionalStaff(user);
+
   const { nationalTeams = [], loading: teamsLoading } = useSelector(state => state.nationalTeams);
+  const { myNationalTeam, loading: myTeamLoading } = useSelector((state) => state.myNationalTeam || {});
+  const myTeam = resolveMyTeam(myNationalTeam);
   const { nationalGame, loading, error, success } = useSelector(state => state.updateNationalGame);
+  const teamIsRegional =
+    regionalCopy ||
+    isRegionalTeam(nationalGame?.nationalTeam) ||
+    isRegionalTeam(myTeam);
 
   const [formData, setFormData] = useState({
     nationalTeamId: '',
@@ -37,8 +55,12 @@ export default function EditNationalGame() {
     if (id) {
       dispatch(getNationalGameById(id));
     }
-    dispatch(getNationalTeams());
-  }, [id, dispatch]);
+    if (staffUser) {
+      dispatch(getMyNationalTeam());
+    } else {
+      dispatch(getNationalTeams());
+    }
+  }, [id, dispatch, staffUser]);
 
   useEffect(() => {
     if (nationalGame) {
@@ -67,7 +89,9 @@ export default function EditNationalGame() {
     if (success) {
       Swal.fire({
         icon: 'success',
-        title: 'Juego nacional actualizado correctamente',
+        title: teamIsRegional
+          ? 'Juego regional actualizado correctamente'
+          : 'Juego nacional actualizado correctamente',
         confirmButtonText: 'Aceptar',
       }).then(() => {
         dispatch(resetUpdateNationalGameState());
@@ -80,7 +104,7 @@ export default function EditNationalGame() {
     const newErrors = {};
 
     if (!formData.nationalTeamId) {
-      newErrors.nationalTeamId = 'Debe seleccionar un equipo nacional';
+      newErrors.nationalTeamId = 'Debe seleccionar un equipo';
     }
 
     if (!formData.opponentName.trim()) {
@@ -177,7 +201,7 @@ export default function EditNationalGame() {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error actualizando juego nacional. Intenta nuevamente.',
+        title: 'Error actualizando el juego',
         confirmButtonText: 'Aceptar',
       });
     } finally {
@@ -195,7 +219,7 @@ export default function EditNationalGame() {
         <div className="card">
           <div className="card-body text-center">
             <ClipLoader color="#007bff" size={50} />
-            <p className="mt-3">Cargando juego nacional...</p>
+            <p className="mt-3">Cargando juego...</p>
           </div>
         </div>
       </div>
@@ -209,7 +233,7 @@ export default function EditNationalGame() {
           <div className="card-body text-center">
             <div className="alert alert-danger">
               <i className="bi bi-exclamation-triangle me-2"></i>
-              Error al cargar el juego nacional:{' '}
+              Error al cargar el juego:{' '}
               {formatErrorForDisplay(error)}
             </div>
             <ButtonNavigation url="/national-games" icon="bi bi-arrow-left" text="Volver" />
@@ -223,7 +247,7 @@ export default function EditNationalGame() {
     <div className="container">
       <div className="card shadow">
         <div className="card-header d-flex justify-content-between align-items-center">
-          <h4>Editar Juego Nacional</h4>
+          <h4>{teamIsRegional ? 'Editar juego regional' : 'Editar juego nacional'}</h4>
           <ButtonNavigation url="/national-games" icon="bi bi-arrow-left" text="Volver" />
         </div>
         <div className="card-body">
@@ -235,18 +259,23 @@ export default function EditNationalGame() {
           <form onSubmit={handleSubmit}>
             <div className="row">
               <div className="col-md-6 mb-3">
-                <label className="form-label">Equipo Nacional *</label>
+                <label className="form-label">
+                  {teamIsRegional ? 'Equipo regional *' : 'Equipo nacional *'}
+                </label>
                 <select
                   className={`form-select ${errors.nationalTeamId ? 'is-invalid' : ''}`}
                   name="nationalTeamId"
                   value={formData.nationalTeamId}
                   onChange={handleChange}
-                  disabled={teamsLoading || isSubmitting || isCancelled}
+                  disabled={staffUser || teamsLoading || myTeamLoading || isSubmitting || isCancelled}
                 >
-                  <option value="">Selecciona un equipo nacional</option>
-                  {nationalTeams.map((team) => (
+                  <option value="">Selecciona un equipo</option>
+                  {(staffUser
+                    ? [nationalGame?.nationalTeam || myTeam].filter(Boolean)
+                    : nationalTeams
+                  ).map((team) => (
                     <option key={team.id} value={team.id}>
-                      {team.name} ({team.countryCode || team.country || '—'})
+                      {representativeTeamLabel(team)}
                     </option>
                   ))}
                 </select>
@@ -270,7 +299,7 @@ export default function EditNationalGame() {
                   name="opponentName"
                   value={formData.opponentName}
                   onChange={handleChange}
-                  placeholder="Ej: Estados Unidos"
+                  placeholder={teamIsRegional ? 'Ej: Caracas' : 'Ej: Estados Unidos'}
                   disabled={isSubmitting || isCancelled}
                 />
                 {errors.opponentName && (
@@ -362,7 +391,7 @@ export default function EditNationalGame() {
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="Ej: Madrid, España"
+                placeholder={teamIsRegional ? 'Ej: Maracaibo, Zulia' : 'Ej: Madrid, España'}
                 disabled={isSubmitting || isCancelled}
               />
               {errors.location && (
@@ -419,7 +448,7 @@ export default function EditNationalGame() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSubmitting || teamsLoading || isCancelled}
+                disabled={isSubmitting || teamsLoading || myTeamLoading || isCancelled}
               >
                 {isSubmitting ? (
                   <>
@@ -429,7 +458,7 @@ export default function EditNationalGame() {
                 ) : (
                   <>
                     <i className="bi bi-check-lg me-2"></i>
-                    Actualizar Juego Nacional
+                    Actualizar juego
                   </>
                 )}
               </button>

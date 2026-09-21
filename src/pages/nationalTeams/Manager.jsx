@@ -21,8 +21,12 @@ export default function NationalTeamManagerHome() {
     countryCode: '',
     gender: 'male',
     category: 'senior',
+    region: '',
   });
 
+  const isRegionalManager = user?.profile?.name === 'MANAGER_REGIONAL_TEAM';
+  const isNationalManager = user?.profile?.name === 'MANAGER_NATIONAL_TEAM';
+  const canSelfServe = isRegionalManager || isNationalManager;
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -56,6 +60,8 @@ export default function NationalTeamManagerHome() {
         countryId: form.countryId,
         gender: form.gender,
         category: form.category,
+        type: isRegionalManager ? 'regional' : 'national_team',
+        ...(isRegionalManager ? { region: form.region.trim() } : {}),
       };
 
       const created = await apiPost(adminPath('/national-teams/teams/me'), payload);
@@ -86,7 +92,9 @@ export default function NationalTeamManagerHome() {
     <div className="container">
       <div className="card shadow">
         <div className="card-header">
-          <h4 className="mb-0">Mi selección nacional</h4>
+          <h4 className="mb-0">
+            {isRegionalManager ? 'Mi equipo regional' : 'Mi selección nacional'}
+          </h4>
         </div>
         <div className="card-body">
           {!team?.id ? (
@@ -96,9 +104,13 @@ export default function NationalTeamManagerHome() {
                 No tienes una selección asignada.
               </div>
 
-              {user?.profile?.name === 'MANAGER_NATIONAL_TEAM' && (
+              {canSelfServe && (
                 <div className="border rounded p-3">
-                  <div className="fw-bold mb-2">Crear mi selección (self-serve)</div>
+                  <div className="fw-bold mb-2">
+                    {isRegionalManager
+                      ? 'Crear mi equipo regional (self-serve)'
+                      : 'Crear mi selección (self-serve)'}
+                  </div>
                   <div className="row g-2">
                     <div className="col-md-6">
                       <label className="form-label">Nombre *</label>
@@ -172,13 +184,30 @@ export default function NationalTeamManagerHome() {
                         <option value="three_x_three">three_x_three</option>
                       </select>
                     </div>
+                    {isRegionalManager && (
+                      <div className="col-md-4">
+                        <label className="form-label">Región *</label>
+                        <input
+                          className="form-control"
+                          value={form.region}
+                          onChange={(e) => setForm({ ...form, region: e.target.value })}
+                          placeholder="Ej: Zulia"
+                          disabled={creating}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="button"
                     className="btn btn-primary mt-3"
                     onClick={handleCreateMine}
-                    disabled={creating || !form.name.trim() || !form.countryId}
+                    disabled={
+                      creating ||
+                      !form.name.trim() ||
+                      !form.countryId ||
+                      (isRegionalManager && !form.region.trim())
+                    }
                   >
                     {creating ? 'Creando…' : 'Crear y asignar'}
                   </button>
@@ -208,7 +237,10 @@ export default function NationalTeamManagerHome() {
                   <div className="fw-bold">{team.name}</div>
 
                   <div className="text-muted">
-                    {team.countryCode} • {team.gender} • {team.category}
+                    {team.countryCode}
+                    {team.region ? ` · ${team.region}` : ''}
+                    {' • '}
+                    {team.gender} • {team.category}
                   </div>
 
                   <div className="text-muted small">

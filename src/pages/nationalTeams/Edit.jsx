@@ -22,8 +22,6 @@ export default function EditNationalTeam() {
   const { users = [], loading: usersLoading = false } = useSelector((state) => state.users || {});
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const managerUsers = users.filter((u) => u?.profile?.name === 'MANAGER_NATIONAL_TEAM');
-
   const [formData, setFormData] = useState({
     name: '',
     countryId: '',
@@ -33,7 +31,15 @@ export default function EditNationalTeam() {
     competitionId: '',
     logo: '',
     managerUserId: '',
+    type: 'national_team',
+    region: '',
   });
+
+  const managerUsers = users.filter((u) =>
+    formData.type === 'regional'
+      ? u?.profile?.name === 'MANAGER_REGIONAL_TEAM'
+      : u?.profile?.name === 'MANAGER_NATIONAL_TEAM',
+  );
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,6 +72,8 @@ export default function EditNationalTeam() {
         competitionId: nationalTeam.competitionId || '',
         logo: nationalTeam.logo || '',
         managerUserId: nationalTeam.managerUserId || '',
+        type: nationalTeam.type || 'national_team',
+        region: nationalTeam.region || '',
       });
     }
   }, [nationalTeam, countries]);
@@ -83,7 +91,7 @@ export default function EditNationalTeam() {
     if (success) {
       Swal.fire({
         icon: 'success',
-        title: 'Equipo Nacional actualizado correctamente',
+        title: 'Equipo actualizado correctamente',
         confirmButtonText: 'Aceptar',
       }).then(() => {
         dispatch(resetUpdateNationalTeamState());
@@ -114,7 +122,10 @@ export default function EditNationalTeam() {
     if (!formData.countryCode.trim()) newErrors.countryCode = 'El código de país es requerido';
     if (!formData.gender) newErrors.gender = 'El género es requerido';
     if (!formData.category) newErrors.category = 'La categoría es requerida';
-    if (!formData.managerUserId) newErrors.managerUserId = 'Debes seleccionar el manager de la selección';
+    if (!formData.managerUserId) newErrors.managerUserId = 'Debes seleccionar el manager';
+    if (formData.type === 'regional' && !formData.region.trim()) {
+      newErrors.region = 'La región es requerida para un equipo regional';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -133,6 +144,11 @@ export default function EditNationalTeam() {
 
       if (name === 'category') {
         next.competitionId = '';
+      }
+
+      if (name === 'type') {
+        next.managerUserId = '';
+        if (value !== 'regional') next.region = '';
       }
 
       return next;
@@ -171,8 +187,11 @@ export default function EditNationalTeam() {
         gender: formData.gender,
         category: formData.category,
         logo: formData.logo || undefined,
-        competitionId: formData.competitionId || undefined,
+        competitionId:
+          formData.type === 'regional' ? null : formData.competitionId || undefined,
         managerUserId: formData.managerUserId || undefined,
+        type: formData.type,
+        region: formData.type === 'regional' ? formData.region.trim() : null,
       };
 
       await dispatch(updateNationalTeam({ id, data: payload })).unwrap();
@@ -238,7 +257,7 @@ export default function EditNationalTeam() {
     <div className="container">
       <div className="card shadow">
         <div className="card-header d-flex justify-content-between align-items-center">
-          <h4>Editar Equipo Nacional</h4>
+          <h4>Editar selección o equipo regional</h4>
           <div className="d-flex gap-2">
             <button
               type="button"
@@ -253,7 +272,7 @@ export default function EditNationalTeam() {
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
-              <label className="form-label">Nombre del Equipo Nacional *</label>
+              <label className="form-label">Nombre *</label>
               <input
                 type="text"
                 className={`form-control ${errors.name ? 'is-invalid' : ''}`}
@@ -266,6 +285,37 @@ export default function EditNationalTeam() {
               {errors.name && (
                 <div className="invalid-feedback">
                   {errors.name}
+                </div>
+              )}
+            </div>
+
+            <div className="row">
+              <div className={`mb-3 ${formData.type === 'regional' ? 'col-md-6' : 'col-md-12'}`}>
+                <label className="form-label">Tipo *</label>
+                <select
+                  className="form-select"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                >
+                  <option value="national_team">Selección nacional</option>
+                  <option value="regional">Equipo regional</option>
+                </select>
+              </div>
+              {formData.type === 'regional' && (
+                <div className="col-md-6 mb-3">
+                  <label className="form-label">Región *</label>
+                  <input
+                    type="text"
+                    className={`form-control ${errors.region ? 'is-invalid' : ''}`}
+                    name="region"
+                    value={formData.region}
+                    onChange={handleChange}
+                    placeholder="Ej: Zulia, Caracas, Carabobo"
+                    disabled={isSubmitting}
+                  />
+                  {errors.region && <div className="invalid-feedback">{errors.region}</div>}
                 </div>
               )}
             </div>
@@ -343,6 +393,7 @@ export default function EditNationalTeam() {
               </div>
             </div>
 
+            {formData.type !== 'regional' && (
             <div className="mb-3">
               <label className="form-label">Competencia (opcional)</label>
               <select
@@ -364,9 +415,12 @@ export default function EditNationalTeam() {
                 ))}
               </select>
             </div>
+            )}
 
             <div className="mb-3">
-              <label className="form-label">Manager de la selección *</label>
+              <label className="form-label">
+                {formData.type === 'regional' ? 'Manager del equipo regional *' : 'Manager de la selección *'}
+              </label>
               <select
                 className={`form-select ${errors.managerUserId ? 'is-invalid' : ''}`}
                 name="managerUserId"
@@ -421,7 +475,7 @@ export default function EditNationalTeam() {
                 ) : (
                   <>
                     <i className="bi bi-check-lg me-2"></i>
-                    Actualizar Equipo Nacional
+                    Actualizar
                   </>
                 )}
               </button>

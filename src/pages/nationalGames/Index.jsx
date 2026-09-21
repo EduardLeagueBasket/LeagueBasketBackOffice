@@ -21,10 +21,17 @@ import {
   getNationalMatchStatusBadgeClass,
 } from '../../utils/matchStatusLabels';
 import { formatErrorForDisplay } from '../../utils/apiErrorMessage';
+import {
+  isRegionalStaff,
+  isRegionalTeam,
+  representativeTeamLabel,
+} from '../../utils/representativeTeam';
 
 export default function NationalGames() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const regionalCopy = isRegionalStaff(user);
   const { nationalGames = [], loading = false, error = null } = useSelector(
     (state) => state.nationalGames,
   );
@@ -87,18 +94,23 @@ export default function NationalGames() {
   const columns = [
     {
       key: 'nationalTeam',
-      header: 'Equipo Nacional',
+      header: 'Equipo',
       cell: (item) => (
         <div className="d-flex align-items-center">
-          {item.nationalTeam?.logoUrl && (
+          {(item.nationalTeam?.logoUrl || item.nationalTeam?.logo) && (
             <img
-              src={item.nationalTeam.logoUrl}
+              src={item.nationalTeam.logoUrl || item.nationalTeam.logo}
               alt={`Logo ${item.nationalTeam.name}`}
               className="rounded-circle me-2"
               style={{ width: '30px', height: '30px', objectFit: 'cover' }}
             />
           )}
-          <span>{item.nationalTeam?.name || 'N/A'}</span>
+          <span>
+            {representativeTeamLabel(item.nationalTeam)}
+            {isRegionalTeam(item.nationalTeam) ? (
+              <span className="badge text-bg-secondary ms-2">Regional</span>
+            ) : null}
+          </span>
         </div>
       ),
     },
@@ -179,7 +191,9 @@ export default function NationalGames() {
         <div className="card">
           <div className="card-body text-center">
             <ClipLoader color="#007bff" size={50} />
-            <p className="mt-3">Cargando juegos nacionales...</p>
+            <p className="mt-3">
+              {regionalCopy ? 'Cargando juegos regionales...' : 'Cargando juegos nacionales...'}
+            </p>
           </div>
         </div>
       </div>
@@ -193,7 +207,7 @@ export default function NationalGames() {
           <div className="card-body text-center">
             <div className="alert alert-danger">
               <i className="bi bi-exclamation-triangle me-2"></i>
-              Error al cargar los juegos nacionales:{' '}
+              Error al cargar los juegos:{' '}
               {formatErrorForDisplay(error)}
             </div>
           </div>
@@ -205,7 +219,9 @@ export default function NationalGames() {
   const emptyCopy =
     nationalGames.length === 0
       ? {
-          title: 'No hay juegos nacionales registrados',
+          title: regionalCopy
+            ? 'No hay juegos regionales registrados'
+            : 'No hay juegos nacionales registrados',
           hint: 'Comienza agregando el primer partido',
         }
       : {
@@ -217,7 +233,9 @@ export default function NationalGames() {
     <div className="container">
       <div className="card">
         <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-          <h4 className="mb-0">Juegos de equipos nacionales</h4>
+          <h4 className="mb-0">
+            {regionalCopy ? 'Juegos regionales' : 'Juegos de selecciones'}
+          </h4>
           <ButtonNavigation
             url="/national-games/add"
             icon="bi bi-plus-lg"

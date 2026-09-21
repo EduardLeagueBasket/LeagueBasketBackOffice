@@ -21,6 +21,9 @@ import {
 
 export default function NationalHome({ user }) {
   const dispatch = useDispatch();
+  const isRegionalStaff =
+    user?.profile?.name === 'MANAGER_REGIONAL_TEAM' ||
+    user?.profile?.name === 'ASISTANT_REGIONAL_TEAM';
   const { myNationalTeam, loading: loadingTeam } = useSelector(
     (s) => s.myNationalTeam || {},
   );
@@ -53,17 +56,25 @@ export default function NationalHome({ user }) {
   const alerts = useMemo(() => {
     const list = [];
     if (!team?.id) {
-      list.push('No tienes una selección nacional asignada.');
+      list.push(
+        isRegionalStaff
+          ? 'No tienes un equipo regional asignado.'
+          : 'No tienes una selección nacional asignada.',
+      );
       return list;
     }
     if (user?.requiredChangePassword) {
       list.push('Debes actualizar tu contraseña.');
     }
     if (!upcoming.length) {
-      list.push('No hay juegos nacionales próximos.');
+      list.push(
+        isRegionalStaff
+          ? 'No hay juegos regionales próximos.'
+          : 'No hay juegos nacionales próximos.',
+      );
     }
     return list;
-  }, [team?.id, user?.requiredChangePassword, upcoming.length]);
+  }, [team?.id, user?.requiredChangePassword, upcoming.length, isRegionalStaff]);
 
   const loading = loadingTeam || loadingGames;
 
@@ -71,13 +82,13 @@ export default function NationalHome({ user }) {
     <>
       <DashboardHeader
         user={user}
-        contextLabel={contextLabel || 'Selección nacional'}
+        contextLabel={contextLabel || (isRegionalStaff ? 'Equipo regional' : 'Selección nacional')}
         loading={loading}
       />
       <StatCards
         items={[
           {
-            label: 'Selección',
+            label: isRegionalStaff ? 'Equipo' : 'Selección',
             value: team?.name || '—',
             hint: team?.category || team?.gender || undefined,
             icon: 'bi-flag',
@@ -107,12 +118,12 @@ export default function NationalHome({ user }) {
         links={[
           {
             to: '/national-teams/manager',
-            label: 'Equipo nacional',
+            label: isRegionalStaff ? 'Equipo regional' : 'Equipo nacional',
             icon: 'bi-gear',
           },
           {
             to: '/national-games',
-            label: 'Juegos nacionales',
+            label: isRegionalStaff ? 'Juegos regionales' : 'Juegos nacionales',
             icon: 'bi-calendar-event',
           },
           { to: '/stories', label: 'Stories', icon: 'bi-camera-reels' },

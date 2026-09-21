@@ -4,16 +4,29 @@ import { ClipLoader } from "react-spinners";
 import Swal from 'sweetalert2';
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getMyNationalTeam } from '../../store/nationalTeams/getMyNationalTeamSlice';
+import { getNationalTeams } from '../../store/nationalTeams/getNationalTeamsSlice';
 import { createNationalGame } from '../../store/nationalGames/createNationalGameSlice';
 import { nationalGameTypes } from '../../utils/gameTypes';
+import {
+  isRegionalStaff,
+  isRegionalTeam,
+  isRepresentativeStaff,
+  representativeTeamLabel,
+  resolveMyTeam,
+} from '../../utils/representativeTeam';
 
 export default function AddNationalGame() {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
+  const regionalCopy = isRegionalStaff(user);
+  const staffUser = isRepresentativeStaff(user);
 
   const { myNationalTeam, loading: myNationalTeamLoading } = useSelector(state => state.myNationalTeam);
+  const { nationalTeams = [], loading: teamsLoading } = useSelector((state) => state.nationalTeams || {});
+  const myTeam = resolveMyTeam(myNationalTeam);
 
   const [formData, setFormData] = useState({
-    nationalTeamId: myNationalTeam?.id || myNationalTeam?.team?.id || '',
+    nationalTeamId: '',
     opponentName: '',
     gameDate: '',
     gameTime: '',
@@ -21,18 +34,38 @@ export default function AddNationalGame() {
     gameType: '',
   });
 
+  const selectedTeam = staffUser
+    ? myTeam
+    : nationalTeams.find((t) => t.id === formData.nationalTeamId);
+  const teamIsRegional = regionalCopy || isRegionalTeam(selectedTeam);
+  const loadingTeams = staffUser ? myNationalTeamLoading : teamsLoading;
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    dispatch(getMyNationalTeam());
-  }, [dispatch]);
+    if (staffUser) {
+      dispatch(getMyNationalTeam());
+    } else {
+      dispatch(getNationalTeams());
+    }
+  }, [dispatch, staffUser]);
+
+  useEffect(() => {
+    if (staffUser && myTeam?.id) {
+      setFormData((prev) =>
+        prev.nationalTeamId === myTeam.id
+          ? prev
+          : { ...prev, nationalTeamId: myTeam.id },
+      );
+    }
+  }, [staffUser, myTeam?.id]);
 
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.nationalTeamId) {
-      newErrors.nationalTeamId = 'Debe seleccionar un equipo nacional';
+      newErrors.nationalTeamId = 'Debe seleccionar un equipo';
     }
 
     if (!formData.opponentName.trim()) {
@@ -107,12 +140,14 @@ export default function AddNationalGame() {
 
       Swal.fire({
         icon: 'success',
-        title: 'Juego nacional creado correctamente',
+        title: teamIsRegional
+          ? 'Juego regional creado correctamente'
+          : 'Juego nacional creado correctamente',
         confirmButtonText: 'Aceptar',
       }).then(() => {
         // Limpiar formulario después del éxito
         setFormData({
-          nationalTeamId: '',
+          nationalTeamId: myTeam?.id || '',
           opponentName: '',
           gameDate: '',
           gameTime: '',
@@ -123,11 +158,11 @@ export default function AddNationalGame() {
       });
 
     } catch (error) {
-      console.error('Error creando juego nacional:', error);
+      console.error('Error creando juego:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error creando juego nacional. Intenta nuevamente.',
+        text: 'Error creando el juego. Intenta nuevamente.',
         confirmButtonText: 'Aceptar',
       });
     } finally {
@@ -137,7 +172,7 @@ export default function AddNationalGame() {
 
   const handleCancel = () => {
     setFormData({
-      nationalTeamId: '',
+      nationalTeamId: myTeam?.id || '',
       opponentName: '',
       gameDate: '',
       gameTime: '',
@@ -151,34 +186,47 @@ export default function AddNationalGame() {
     <div className="container">
       <div className="card shadow">
         <div className="card-header d-flex justify-content-between align-items-center">
-          <h4>Crear Nuevo Juego Nacional</h4>
+          <h4>{teamIsRegional ? 'Crear juego regional' : 'Crear juego nacional'}</h4>
           <ButtonNavigation url="/national-games" icon="bi bi-arrow-left" text="Volver" />
         </div>
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             <div className="row">
               <div className="col-md-6 mb-3">
-                <label className="form-label">Equipo Nacional *</label>
+                <label className="form-label">
+                  {teamIsRegional ? 'Equipo regional *' : 'Equipo nacional *'}
+                </label>
                 <select
                   className={`form-select ${errors.nationalTeamId ? 'is-invalid' : ''}`}
                   name="nationalTeamId"
                   value={formData.nationalTeamId}
                   onChange={handleChange}
-                  disabled={myNationalTeamLoading || isSubmitting}
+                  disabled={staffUser || loadingTeams || isSubmitting}
                 >
-                  <option value="">Selecciona un equipo nacional</option>
-                  <option key={myNationalTeam?.id} value={myNationalTeam?.id}>
-                    {myNationalTeam?.name} ({myNationalTeam?.countryCode || myNationalTeam?.country || '—'})
+                  <option value="">
+                    {loadingTeams ? 'Cargando equipo...' : 'Selecciona un equipo'}
                   </option>
+                  {(staffUser ? (myTeam?.id ? [myTeam] : []) : nationalTeams).map(
+                    (team) => (
+                      <option key={team.id} value={team.id}>
+                        {representativeTeamLabel(team)}
+                      </option>
+                    ),
+                  )}
                 </select>
                 {errors.nationalTeamId && (
                   <div className="invalid-feedback">
                     {errors.nationalTeamId}
                   </div>
                 )}
-                {myNationalTeamLoading && (
+                {loadingTeams && (
                   <small className="text-muted">
-                    <ClipLoader color="#007bff" size={12} /> Cargando equipos...
+                    <ClipLoader color="#007bff" size={12} /> Cargando equipo...
+                  </small>
+                )}
+                {staffUser && !loadingTeams && !myTeam?.id && (
+                  <small className="text-danger">
+                    No tienes un equipo asignado. Pide a un admin que te asigne uno.
                   </small>
                 )}
               </div>
@@ -191,7 +239,7 @@ export default function AddNationalGame() {
                   name="opponentName"
                   value={formData.opponentName}
                   onChange={handleChange}
-                  placeholder="Ej: Estados Unidos"
+                  placeholder={teamIsRegional ? 'Ej: Caracas' : 'Ej: Estados Unidos'}
                   disabled={isSubmitting}
                 />
                 {errors.opponentName && (
@@ -264,7 +312,7 @@ export default function AddNationalGame() {
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="Ej: Madrid, España"
+                placeholder={teamIsRegional ? 'Ej: Maracaibo, Zulia' : 'Ej: Madrid, España'}
                 disabled={isSubmitting}
               />
               {errors.location && (
@@ -286,7 +334,7 @@ export default function AddNationalGame() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSubmitting || myNationalTeamLoading}
+                disabled={isSubmitting || loadingTeams || (staffUser && !myTeam?.id)}
               >
                 {isSubmitting ? (
                   <>
@@ -296,7 +344,7 @@ export default function AddNationalGame() {
                 ) : (
                   <>
                     <i className="bi bi-plus-lg me-2"></i>
-                    Crear Juego Nacional
+                    Crear juego
                   </>
                 )}
               </button>
