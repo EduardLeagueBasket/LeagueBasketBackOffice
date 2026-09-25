@@ -8,6 +8,7 @@ import Swal from 'sweetalert2'
 import ButtonNavigation from '../../components/Button/ButtonNavigation';
 import ButtonAction from '../../components/Button/ButtonAction';
 import { mapProfileName } from '../../utils/MapRoleName';
+import { filterCreatableProfiles } from '../../utils/userCreationPolicy';
 
 const LEAGUE_BOUND_PROFILES = ['MANAGER_TEAM', 'ASISTANT_LEAGUE', 'ASISTANT_TEAM'];
 
@@ -29,9 +30,9 @@ const Users = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
+  const actorProfile = user?.profile?.name;
   const isLeagueStaff =
-    user?.profile?.name === 'MANAGER_LEAGUE' ||
-    user?.profile?.name === 'ASISTANT_LEAGUE';
+    actorProfile === 'MANAGER_LEAGUE' || actorProfile === 'MANAGER_TEAM';
   const selectedProfile = profiles.find((p) => String(p.id) === String(formData.perfil));
   const needsCompetition =
     !isLeagueStaff && LEAGUE_BOUND_PROFILES.includes(selectedProfile?.rawName);
@@ -42,33 +43,20 @@ const Users = () => {
       dispatch(getCompetitions());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
+  }, [dispatch, actorProfile, isLeagueStaff]);
 
   const handleGetProfiles = async () => {
     const result = await dispatch(getProfiles());
 
     if (result.payload.length > 0) {
-      const rawProfiles = result.payload;
-      const filteredProfiles = rawProfiles
-        .filter(profile => profile.name !== 'USER')
-        .map(profile => {
-          if (isLeagueStaff) {
-            if (profile.name === 'MANAGER_TEAM' || profile.name === 'ASISTANT_LEAGUE') {
-              return {
-                ...profile,
-                rawName: profile.name,
-                name: mapProfileName(profile.name),
-              };
-            }
-            return null;
-          }
-          return {
-            ...profile,
-            rawName: profile.name,
-            name: mapProfileName(profile.name),
-          };
-        })
-        .filter(profile => profile !== null);
+      const filteredProfiles = filterCreatableProfiles(
+        actorProfile,
+        result.payload,
+      ).map(profile => ({
+        ...profile,
+        rawName: profile.name,
+        name: mapProfileName(profile.name),
+      }));
 
       setProfiles(filteredProfiles);
     }

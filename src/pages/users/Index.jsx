@@ -11,6 +11,14 @@ const Users = () => {
   const { users = [], loading = false, pagination = { currentPage: 1, totalPages: 0, totalUsers: 0, limit: 5 } } = useSelector((state) => state.users || {});
   const { user: currentUser } = useSelector((state) => state.auth);
   const isSuperAdmin = currentUser?.profile?.name === 'SUPER_ADMIN';
+  const canCreateUser = [
+    'ADMIN',
+    'SUPER_ADMIN',
+    'MANAGER_LEAGUE',
+    'MANAGER_TEAM',
+    'MANAGER_NATIONAL_TEAM',
+    'MANAGER_REGIONAL_TEAM',
+  ].includes(currentUser?.profile?.name);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,7 +54,9 @@ const Users = () => {
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center">
           <h4 className="mb-0">Gestión de Usuarios</h4>
-          <ButtonNavigation url="/users/add" icon="bi bi-plus-lg" text="Agregar Usuario" />
+          {canCreateUser && (
+            <ButtonNavigation url="/users/add" icon="bi bi-plus-lg" text="Agregar Usuario" />
+          )}
         </div>
 
         <div className="card-body">

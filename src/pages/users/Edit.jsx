@@ -9,6 +9,7 @@ import { mapProfileName } from '../../utils/MapRoleName';
 import { getProfiles } from '../../store/profileSlice';
 import { userUpdate } from '../../store/userUpdateSlice';
 import Swal from 'sweetalert2'
+import { filterCreatableProfiles } from '../../utils/userCreationPolicy';
 
 export default function Edit() {
   const { id } = useParams();
@@ -81,8 +82,10 @@ export default function Edit() {
     if (result.payload.length > 0) {
       const rawProfiles = result.payload;
 
-      const filteredProfiles = rawProfiles
-        .filter(profile => profile.name !== 'USER')
+      const filteredProfiles = filterCreatableProfiles(
+        userAuth?.profile?.name,
+        rawProfiles,
+      )
         .map(profile => ({
           ...profile,
           name: mapProfileName(profile.name),
@@ -90,7 +93,7 @@ export default function Edit() {
 
       setProfiles(filteredProfiles);
     }
-  }, [dispatch]);
+  }, [dispatch, userAuth?.profile?.name]);
 
   useEffect(() => {
     handleGetUser();
