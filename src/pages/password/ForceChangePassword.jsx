@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { updatePassword, clearAuthState } from '../../store/authSlice';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,10 @@ const ForceChangePassword = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, loading } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    document.title = 'Actualizar contraseña | League basket';
+  }, []);
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

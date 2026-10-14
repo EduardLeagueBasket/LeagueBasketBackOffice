@@ -66,6 +66,7 @@ import PublishersIndex from './pages/publishers/Index';
 import ArticleCategoriesIndex from './pages/articleCategories/Index';
 import ArticlesIndex from './pages/articles/Index';
 import ArticlesAdd from './pages/articles/Add';
+import TitleManager from './components/TitleManager';
 
 const App = () => {
   const user = useSelector((state) => state.auth.user);
@@ -83,6 +84,7 @@ const App = () => {
 
   return (
     <BrowserRouter>
+      <TitleManager />
       <Routes>
         <Route
           path="/login"
