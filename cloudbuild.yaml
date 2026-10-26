@@ -1,0 +1,18 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '--build-arg', 'REACT_APP_API_URL=http://136.111.135.153',
+    '-t', 'gcr.io/$PROJECT_ID/bo-league-basket',
+    '.'
+  ]
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: [
+    'run', 'deploy', 'bo-league-basket',
+    '--image', 'gcr.io/$PROJECT_ID/bo-league-basket',
+    '--region', 'us-central1',
+    '--platform', 'managed',
+    '--allow-unauthenticated'
+  ]
+images:
+- 'gcr.io/$PROJECT_ID/bo-league-basket'
