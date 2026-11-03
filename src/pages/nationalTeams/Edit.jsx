@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import ButtonNavigation from "../../components/Button/ButtonNavigation";
 import { getNationalTeamById, updateNationalTeam, resetUpdateNationalTeamState } from '../../store/nationalTeams/updateNationalTeamSlice';
 import UploadNationalTeamLogoModal from '../../components/Modals/UploadNationalTeamLogo';
+import { uploadLogo } from '../../store/uploads/uploadLogoSlice';
 import { getCatalogCountries } from '../../store/catalogCountriesSlice';
 import { getCompetitions } from '../../store/competitionsSlice';
 import { getUsers } from '../../store/usersSlice';
@@ -21,6 +22,8 @@ export default function EditNationalTeam() {
   const { competitions = [], loading: competitionsLoading = false } = useSelector((state) => state.competitions || {});
   const { users = [], loading: usersLoading = false } = useSelector((state) => state.users || {});
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -43,6 +46,12 @@ export default function EditNationalTeam() {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(logoPreviewUrl);
+    };
+  }, [logoPreviewUrl]);
 
   useEffect(() => {
     if (id) {
@@ -180,13 +189,35 @@ export default function EditNationalTeam() {
     setIsSubmitting(true);
 
     try {
+      let resolvedLogoUrl = formData.logo || '';
+      if (logoFile) {
+        const uploaded = await dispatch(
+          uploadLogo({
+            file: logoFile,
+            folder: 'national-team-logos',
+            referenceId: id || currentUser?.id || 'temp',
+            type: 'national-team',
+          }),
+        ).unwrap();
+
+        const nextUrl = uploaded?.url;
+        if (!nextUrl) throw new Error('No se pudo obtener la URL del logo subido.');
+
+        resolvedLogoUrl = nextUrl;
+        // Cachear URL para reintentos sin re-subir
+        setFormData((prev) => ({ ...prev, logo: nextUrl }));
+        setLogoFile(null);
+        if (logoPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(logoPreviewUrl);
+        setLogoPreviewUrl('');
+      }
+
       const payload = {
         name: formData.name.trim(),
         countryCode: formData.countryCode.trim().toUpperCase(),
         countryId: formData.countryId || undefined,
         gender: formData.gender,
         category: formData.category,
-        logo: formData.logo || undefined,
+        logo: resolvedLogoUrl || undefined,
         competitionId:
           formData.type === 'regional' ? null : formData.competitionId || undefined,
         managerUserId: formData.managerUserId || undefined,
@@ -197,7 +228,12 @@ export default function EditNationalTeam() {
       await dispatch(updateNationalTeam({ id, data: payload })).unwrap();
 
     } catch (error) {
-      const msg = typeof error === 'string' ? error : 'Error actualizando equipo nacional. Intenta nuevamente.';
+      const msg =
+        typeof error === 'string'
+          ? error
+          : error?.message
+            ? error.message
+            : 'Error actualizando equipo nacional. Intenta nuevamente.';
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -213,15 +249,10 @@ export default function EditNationalTeam() {
     navigate('/nationals-teams');
   };
 
-  const handleLogoUploaded = (logoUrl) => {
-    setFormData(prev => ({
-      ...prev,
-      logo: logoUrl,
-    }));
-  };
-
-  const reloadData = () => {
-    // Función para recargar datos si es necesario
+  const handleLogoUploaded = (file) => {
+    setLogoFile(file);
+    if (logoPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(logoPreviewUrl);
+    setLogoPreviewUrl(URL.createObjectURL(file));
   };
 
   if (loading && !nationalTeam) {
@@ -439,12 +470,12 @@ export default function EditNationalTeam() {
               {errors.managerUserId && <div className="invalid-feedback">{errors.managerUserId}</div>}
             </div>
 
-            {formData.logo && (
+            {(logoPreviewUrl || formData.logo) && (
               <div className="mb-3">
                 <label className="form-label">Logo del Equipo</label>
                 <div className="text-center">
                   <img
-                    src={formData.logo}
+                    src={logoPreviewUrl || formData.logo}
                     alt="Logo del equipo"
                     className="img-fluid rounded shadow"
                     style={{ maxHeight: '150px' }}
@@ -488,10 +519,6 @@ export default function EditNationalTeam() {
         show={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         onUploaded={handleLogoUploaded}
-        referenceId={id || currentUser?.id || 'temp'}
-        reloadData={reloadData}
-        folder="national-team-logos"
-        type="national-team"
       />
     </div>
   );

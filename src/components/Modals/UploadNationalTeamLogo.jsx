@@ -1,38 +1,46 @@
-import React, { useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { uploadLogo, clearUpload } from '../../store/uploads/uploadLogoSlice';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-const UploadNationalTeamLogoModal = ({ show, onClose, onUploaded, referenceId, reloadData, folder, type }) => {
-  const dispatch = useDispatch();
-  const { loading = false, progress = 0, url = '', error = null, processComplete = false
-  } = useSelector(state => state.uploadLogo || {});
+/**
+ * Modal SOLO para seleccionar un archivo y previsualizarlo localmente.
+ * No sube nada al backend: la subida se hace al Crear/Actualizar.
+ */
+const UploadNationalTeamLogoModal = ({ show, onClose, onUploaded }) => {
   const fileInputRef = useRef();
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  const previewUrl = useMemo(() => {
+    if (!selectedFile) return '';
+    return URL.createObjectURL(selectedFile);
+  }, [selectedFile]);
 
   useEffect(() => {
-    if (!show || !processComplete || !url) return;
-    onUploaded(url);
-    dispatch(clearUpload());
-    reloadData();
-    onClose();
-  }, [show, processComplete, url, onUploaded, onClose, reloadData, dispatch]);
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  useEffect(() => {
+    if (!show) return;
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [show]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    dispatch(uploadLogo({ file, folder, referenceId, type }));
+    setSelectedFile(file);
   };
 
   const handleClose = () => {
-    dispatch(clearUpload());
-    reloadData()
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     onClose();
   };
 
   const handleUseLogo = () => {
-    if (url) {
-      onUploaded(url);
-      handleClose();
-    }
+    if (!selectedFile) return;
+    onUploaded(selectedFile);
+    handleClose();
   };
 
   if (!show) return null;
@@ -59,27 +67,17 @@ const UploadNationalTeamLogoModal = ({ show, onClose, onUploaded, referenceId, r
                 ref={fileInputRef}
                 className="form-control mb-3"
                 onChange={handleFileChange}
-                disabled={loading}
+                disabled={false}
               />
 
-              {loading && (
-                <div className="progress mb-3">
-                  <div
-                    className="progress-bar"
-                    role="progressbar"
-                    style={{ width: `${progress}%` }}
-                    aria-valuenow={progress}
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                  >
-                    {progress}%
-                  </div>
-                </div>
-              )}
-
-              {error && (
-                <div className="alert alert-danger text-center">
-                  {error}
+              {previewUrl && (
+                <div className="text-center">
+                  <img
+                    src={previewUrl}
+                    alt="Preview logo"
+                    className="img-fluid rounded shadow"
+                    style={{ maxHeight: 180 }}
+                  />
                 </div>
               )}
             </div>
@@ -95,7 +93,7 @@ const UploadNationalTeamLogoModal = ({ show, onClose, onUploaded, referenceId, r
                 type="button"
                 className="btn btn-primary"
                 onClick={handleUseLogo}
-                disabled={!url}
+                disabled={!selectedFile}
               >
                 Usar Logo
               </button>

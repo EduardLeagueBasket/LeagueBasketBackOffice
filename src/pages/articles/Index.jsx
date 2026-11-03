@@ -133,10 +133,10 @@ export default function ArticlesIndex() {
           <div>
             <h5 className="mb-0">Artículos</h5>
             <small className="text-muted d-block">
-              {isAdmin
-                ? `Publicas como ${publisher?.display_name || 'League Basket'}`
-                : publisher?.display_name
-                  ? `Publisher: ${publisher.display_name}`
+              {publisher?.display_name
+                ? `Publicas como ${publisher.display_name}`
+                : isAdmin
+                  ? 'Publicas como League Basket'
                   : ''}
             </small>
             {feedCountry && (

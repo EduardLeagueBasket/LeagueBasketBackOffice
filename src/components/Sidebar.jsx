@@ -217,20 +217,12 @@ const Sidebar = ({ onLogout, isCollapsed, onToggleCollapse }) => {
           {
             (user?.profile?.name === 'SUPER_ADMIN' ||
               user?.profile?.name === 'ADMIN') && (
-              <>
-                <li className="nav-item">
-                  <NavLink to="/publishers" className="nav-link">
-                    <i className="bi bi-broadcast me-2"></i>
-                    {!isCollapsed && <span>Publishers</span>}
-                  </NavLink>
-                </li>
-                <li className="nav-item">
-                  <NavLink to="/article-categories" className="nav-link">
-                    <i className="bi bi-tags me-2"></i>
-                    {!isCollapsed && <span>Categorías</span>}
-                  </NavLink>
-                </li>
-              </>
+              <li className="nav-item">
+                <NavLink to="/article-categories" className="nav-link">
+                  <i className="bi bi-tags me-2"></i>
+                  {!isCollapsed && <span>Categorías</span>}
+                </NavLink>
+              </li>
             )
           }
           {

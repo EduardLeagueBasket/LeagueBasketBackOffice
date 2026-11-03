@@ -62,7 +62,6 @@ import SeasonDetail from './pages/seasons/Detail';
 import LeagueStandingsIndex from './pages/leagueStandings/Index';
 import StoriesIndex from './pages/stories/Index';
 import StoriesAdd from './pages/stories/Add';
-import PublishersIndex from './pages/publishers/Index';
 import ArticleCategoriesIndex from './pages/articleCategories/Index';
 import ArticlesIndex from './pages/articles/Index';
 import ArticlesAdd from './pages/articles/Add';
@@ -131,7 +130,6 @@ const App = () => {
           <Route path="league-standings" element={<LeagueStandingsIndex />} />
           <Route path="stories" element={<StoriesIndex />} />
           <Route path="stories/add" element={<StoriesAdd />} />
-          <Route path="publishers" element={<PublishersIndex />} />
           <Route path="article-categories" element={<ArticleCategoriesIndex />} />
           <Route path="articles" element={<ArticlesIndex />} />
           <Route path="articles/add" element={<ArticlesAdd />} />

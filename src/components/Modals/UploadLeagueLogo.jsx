@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { uploadLogo, clearUpload } from '../../store/uploads/uploadLogoSlice';
 
@@ -7,33 +7,46 @@ const UploadLeagueLogoModal = ({ show, onClose, onUploaded, referenceId, reloadD
   const { loading = false, progress = 0, url = '', error = null, processComplete = false
   } = useSelector(state => state.uploadLogo || {});
   const fileInputRef = useRef();
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
-    if (processComplete) {
-      onClose();
-      reloadData();
-    }
-  }, [processComplete, onClose, reloadData])
+    if (!show || !processComplete || !url) return;
+    onUploaded(url);
+    dispatch(clearUpload());
+    reloadData();
+    onClose();
+  }, [show, processComplete, url, onUploaded, reloadData, onClose, dispatch]);
 
+  useEffect(() => {
+    if (!show) return;
+    dispatch(clearUpload());
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [show, dispatch]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    console.log('Dispatching uploadLogo with referenceId:', referenceId);
-    dispatch(uploadLogo({ file, folder, referenceId, type }));
+    setSelectedFile(file);
   };
 
   const handleClose = () => {
     dispatch(clearUpload());
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     reloadData()
     onClose();
   };
 
   const handleUseLogo = () => {
+    if (loading) return;
     if (url) {
       onUploaded(url);
       handleClose();
+      return;
     }
+    if (!selectedFile) return;
+    dispatch(uploadLogo({ file: selectedFile, folder, referenceId, type }));
   };
 
   if (!show) return null;
@@ -102,7 +115,7 @@ const UploadLeagueLogoModal = ({ show, onClose, onUploaded, referenceId, reloadD
                 type="button"
                 className="btn btn-primary"
                 onClick={handleUseLogo}
-                disabled={!url}
+                disabled={loading || (!selectedFile && !url)}
               >
                 Usar Logo
               </button>

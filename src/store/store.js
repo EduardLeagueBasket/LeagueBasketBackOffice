@@ -31,7 +31,6 @@ import managerLeagueGamesReducer from './leagueGames/managerLeagueGamesSlice';
 import seasonsReducer from './seasons/seasonsSlice';
 import leagueStandingsReducer from './leagueStandings/leagueStandingsSlice';
 import storiesReducer from './stories/storiesSlice';
-import publishersReducer from './publishers/publishersSlice';
 import articleCategoriesReducer from './articleCategories/articleCategoriesSlice';
 import articlesReducer from './articles/articlesSlice';
 import getMyNationalTeamReducer from './nationalTeams/getMyNationalTeamSlice';
@@ -78,7 +77,6 @@ export const store = configureStore({
     seasons: seasonsReducer,
     leagueStandings: leagueStandingsReducer,
     stories: storiesReducer,
-    publishers: publishersReducer,
     articleCategories: articleCategoriesReducer,
     articles: articlesReducer,
     myNationalTeam: getMyNationalTeamReducer,

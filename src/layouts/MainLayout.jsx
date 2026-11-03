@@ -35,7 +35,6 @@ const MainLayout = ({ onLogout }) => {
       '/seasons/add': 'Nueva temporada',
       '/stories': 'Stories',
       '/stories/add': 'Nueva story',
-      '/publishers': 'Publishers',
       '/article-categories': 'Categorías de artículos',
       '/articles': 'Artículos',
       '/articles/add': 'Nuevo artículo',

@@ -62,9 +62,6 @@ const routes = [
   ["/stories/add", `Añadir historia | ${BASE}`],
   ["/stories", `Historias | ${BASE}`],
 
-  // Publishers
-  ["/publishers", `Publishers | ${BASE}`],
-
   // Article categories
   ["/article-categories", `Categorías de artículos | ${BASE}`],
 

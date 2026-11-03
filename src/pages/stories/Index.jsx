@@ -116,27 +116,18 @@ export default function StoriesIndex() {
           <div>
             <h5 className="mb-0">Stories</h5>
             <small className="text-muted">
-              {isAdmin
-                ? `Publicas como ${publisher?.display_name || 'League Basket'}`
-                : publisher?.display_name
-                  ? `Publisher: ${publisher.display_name}`
+              {publisher?.display_name
+                ? `Publicas como ${publisher.display_name}`
+                : isAdmin
+                  ? 'Publicas como League Basket'
                   : ''}
             </small>
           </div>
-          <div className="d-flex gap-2">
-            {isAdmin && (
-              <ButtonNavigation
-                url="/publishers"
-                icon="bi bi-broadcast"
-                text="Publishers"
-              />
-            )}
-            <ButtonNavigation
-              url="/stories/add"
-              icon="bi bi-plus-lg"
-              text="Nueva story"
-            />
-          </div>
+          <ButtonNavigation
+            url="/stories/add"
+            icon="bi bi-plus-lg"
+            text="Nueva story"
+          />
         </div>
         <div className="card-body">
           {error && (
