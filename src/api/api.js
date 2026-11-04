@@ -2,9 +2,12 @@
 import axios from 'axios';
 
 // Base de tu backend (puedes usar variables de entorno para mayor flexibilidad)
-const BASE_URL = process.env.REACT_APP_API_URL
+/*const BASE_URL = process.env.REACT_APP_API_URL
   ? `${process.env.REACT_APP_API_URL.replace(/\/$/, '')}/api`
-  : 'http://localhost:3000/api';
+  : 'http://localhost:3000/api';*/
+const BASE_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000/api'
+  : 'https://api-go-94442686231.us-central1.run.app/api';
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
