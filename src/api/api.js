@@ -18,6 +18,12 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
+  console.log('[API DEBUG]', {
+    hostname: window.location.hostname,
+    baseURL: config.baseURL,
+    url: config.url,
+    resolvedURL: axiosInstance.getUri(config),
+  });
   const user = localStorage.getItem('user');
   if (user) {
     const parsedUser = JSON.parse(user);
